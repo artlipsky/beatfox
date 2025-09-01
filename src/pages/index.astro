@@ -1,18 +1,39 @@
 ---
 import Layout from '../layouts/Layout.astro';
-import { Button } from '@heroui/react';
+import { Button, Image } from '@heroui/react';
 ---
 
 <Layout title="BeatFox">
-  <main class="mx-auto px-4 py-8 container">
-    <div class="space-y-6 text-center">
-      <h1 class="font-bold text-gray-900 text-4xl">Welcome to BeatFox</h1>
-      <p class="text-gray-600 text-lg">
-        Your development environment is ready!
+  <main
+    class="flex justify-center items-center mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 lg:py-16 min-h-screen container"
+  >
+    <div
+      class="flex flex-col items-center gap-4 sm:gap-6 max-w-2xl text-center"
+    >
+      <Image
+        width={200}
+        isBlurred
+        radius="none"
+        src="/logo-col.svg"
+        alt="BeatFox Logo"
+        className="mx-auto w-32 sm:w-40 lg:w-48"
+        client:visible
+      />
+      <h1
+        class="font-bold text-gray-900 dark:text-gray-100 text-2xl sm:text-3xl lg:text-4xl xl:text-5xl"
+      >
+        Welcome to&nbsp;BeatFox
+      </h1>
+      <p
+        class="max-w-md sm:max-w-lg text-gray-600 dark:text-gray-400 text-base sm:text-lg lg:text-xl"
+      >
+        Your development environment is&nbsp;ready!
       </p>
-      <div class="space-x-4">
-        <Button color="primary" client:visible> Get Started </Button>
-        <Button color="secondary" variant="bordered" client:visible>
+      <div
+        class="flex sm:flex-row flex-col justify-center gap-4 w-full sm:w-auto"
+      >
+        <Button fullWidth color="warning" client:visible> Get Started </Button>
+        <Button fullWidth color="default" variant="flat" client:visible>
           Learn More
         </Button>
       </div>
