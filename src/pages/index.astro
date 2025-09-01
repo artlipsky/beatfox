@@ -4,15 +4,14 @@ import { Button } from '@heroui/react';
 ---
 
 <Layout title="BeatFox">
-  <main class="container mx-auto px-4 py-8">
-    <div class="text-center space-y-6">
-      <h1 class="text-4xl font-bold text-gray-900">Welcome to BeatFox</h1>
-      <p class="text-lg text-gray-600">Your development environment is ready!</p>
-      
+  <main class="mx-auto px-4 py-8 container">
+    <div class="space-y-6 text-center">
+      <h1 class="font-bold text-gray-900 text-4xl">Welcome to BeatFox</h1>
+      <p class="text-gray-600 text-lg">
+        Your development environment is ready!
+      </p>
       <div class="space-x-4">
-        <Button color="primary" client:visible>
-          Get Started
-        </Button>
+        <Button color="primary" client:visible> Get Started </Button>
         <Button color="secondary" variant="bordered" client:visible>
           Learn More
         </Button>
