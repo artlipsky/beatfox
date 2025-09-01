@@ -5,8 +5,7 @@ import tailwind from '@tailwindcss/vite';
 
 // https://astro.build/config
 export default defineConfig({
-  site: 'https://artlipsky.github.io',
-  base: '/beatfox',
+  site: 'https://beatfox.ru',
   integrations: [react()],
   vite: {
     plugins: [tailwind()],
