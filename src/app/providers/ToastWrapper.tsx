@@ -1,4 +1,4 @@
-import { ToastProvider } from '@heroui/react';
+import { ToastProvider } from '@heroui/toast';
 
 interface ToastWrapperProps {
   children: React.ReactNode;

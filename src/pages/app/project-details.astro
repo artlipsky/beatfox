@@ -10,12 +10,12 @@ import ToastWrapper from '../../app/providers/ToastWrapper.tsx';
 <Layout title="Project Details - BeatFox">
   <Header client:visible />
   <main
-    class="flex justify-center items-stretch gap-4 mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 lg:py-16 w-full min-h-screen container"
+    class="flex sm:flex-row flex-col justify-start items-stretch gap-4 mx-auto p-6 w-full max-w-5xl min-h-screen"
   >
     <SideBar client:visible />
     <PageContent client:visible />
   </main>
-  <ToastWrapper client:visible>
-    <AutoToast client:visible />
+  <ToastWrapper client:load>
+    <AutoToast client:load />
   </ToastWrapper>
 </Layout>

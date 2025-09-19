@@ -6,6 +6,8 @@ import {
   CreditCardIcon,
   Cog6ToothIcon,
   ArrowRightCircleIcon,
+  FolderIcon,
+  CalendarIcon,
 } from '@heroicons/react/16/solid';
 
 export interface MenuItem {
@@ -14,6 +16,11 @@ export interface MenuItem {
   shortcut: string;
   key: string;
 }
+
+export const primaryMenuItems: MenuItem[] = [
+  { name: 'Projects', icon: FolderIcon, shortcut: '⌘R', key: 'projects' },
+  { name: 'Appointments', icon: CalendarIcon, shortcut: '⌘A', key: 'appointments' },
+];
 
 export const menuItems: MenuItem[] = [
   { name: 'Profile', icon: UserIcon, shortcut: '⌘P', key: 'profile' },

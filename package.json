@@ -18,6 +18,7 @@
     "@astrojs/react": "^4.3.0",
     "@heroicons/react": "^2.2.0",
     "@heroui/react": "^2.8.3",
+    "@heroui/toast": "^2.0.16",
     "@tailwindcss/vite": "^4.1.12",
     "@types/react": "^19.1.12",
     "@types/react-dom": "^19.1.9",

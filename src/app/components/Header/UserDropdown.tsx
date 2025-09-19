@@ -6,7 +6,7 @@ import {
   User,
   Skeleton,
 } from '@heroui/react';
-import { menuItems, logoutItem } from './menuItems';
+import { menuItems, logoutItem } from '../../constants/menuItems';
 import avatar from '../../assets/artlipsky.png';
 
 interface UserDropdownProps {
@@ -36,7 +36,7 @@ export default function UserDropdown({ isLoaded }: UserDropdownProps) {
             <DropdownItem
               key={item.key}
               variant="flat"
-              startContent={<item.icon className="size-4" />}
+              startContent={<item.icon className="opacity-50 size-4" />}
               shortcut={item.shortcut}
               showDivider={index === menuItems.length - 1}
             >
