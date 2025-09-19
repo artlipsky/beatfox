@@ -1,6 +1,7 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import { Button, Image } from '@heroui/react';
+import logoCol from '../assets/logo-col.svg';
 ---
 
 <Layout title="BeatFox">
@@ -13,7 +14,7 @@ import { Button, Image } from '@heroui/react';
       <Image
         isBlurred
         radius="none"
-        src="/logo-col.svg"
+        src={logoCol.src}
         alt="BeatFox Logo"
         className="m-2 w-32 sm:w-40 lg:w-48"
         client:visible
@@ -31,10 +32,7 @@ import { Button, Image } from '@heroui/react';
       <div
         class="flex sm:flex-row flex-col justify-center gap-4 w-full sm:w-auto"
       >
-        <Button fullWidth color="warning" client:visible> Get Started </Button>
-        <Button fullWidth color="default" variant="flat" client:visible>
-          Learn More
-        </Button>
+        <Button as="a" href="/app/project-details" fullWidth color="warning" client:visible> Get Started </Button>
       </div>
     </div>
   </main>

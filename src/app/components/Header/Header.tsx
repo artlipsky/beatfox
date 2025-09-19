@@ -6,7 +6,7 @@ import {
   NavbarMenuToggle,
   Skeleton,
 } from '@heroui/react';
-import { useLoaded } from '../../../hooks/useLoaded';
+import { useLoaded } from '../../hooks/useLoaded';
 import { useState } from 'react';
 import MobileMenu from './MobileMenu';
 import UserDropdown from './UserDropdown';

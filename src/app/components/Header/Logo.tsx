@@ -1,8 +1,5 @@
-import {
-  Link,
-  Image,
-  Skeleton,
-} from '@heroui/react';
+import { Link, Image, Skeleton } from '@heroui/react';
+import logo from '../../assets/ergeon-logo.svg';
 
 interface LogoProps {
   isLoaded: boolean;
@@ -19,7 +16,7 @@ export default function Logo({ isLoaded }: LogoProps) {
       >
         <Image
           radius="none"
-          src="../src/assets/ergeon-logo.svg"
+          src={logo.src}
           alt="Ergeon Logo"
           className="w-40"
         />

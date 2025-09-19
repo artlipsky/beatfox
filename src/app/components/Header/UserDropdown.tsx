@@ -7,6 +7,7 @@ import {
   Skeleton,
 } from '@heroui/react';
 import { menuItems, logoutItem } from './menuItems';
+import avatar from '../../assets/artlipsky.png';
 
 interface UserDropdownProps {
   isLoaded: boolean;
@@ -23,7 +24,7 @@ export default function UserDropdown({ isLoaded }: UserDropdownProps) {
             isFocusable
             name="Arthur Lipsky"
             avatarProps={{
-              src: '../src/assets/artlipsky.png',
+              src: avatar.src,
             }}
             description="UI/UX Designer"
           />

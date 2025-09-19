@@ -1,8 +1,10 @@
 ---
 import Layout from '../../layouts/Layout.astro';
-import Header from '../../components/app/header';
-import SideBar from '../../components/app/SideBar.tsx';
-import PageContent from '../../components/app/PageContent.tsx';
+import Header from '../../app/components/Header';
+import SideBar from '../../app/components/SideBar.tsx';
+import PageContent from '../../app/components/PageContent.tsx';
+import AutoToast from '../../app/components/AutoToast.tsx';
+import ToastWrapper from '../../app/providers/ToastWrapper.tsx';
 ---
 
 <Layout title="Project Details - BeatFox">
@@ -13,4 +15,7 @@ import PageContent from '../../components/app/PageContent.tsx';
     <SideBar client:visible />
     <PageContent client:visible />
   </main>
+  <ToastWrapper client:visible>
+    <AutoToast client:visible />
+  </ToastWrapper>
 </Layout>
