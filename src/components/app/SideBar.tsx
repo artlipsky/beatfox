@@ -2,7 +2,7 @@ import { Card, CardBody } from '@heroui/react';
 
 export default function SideBar() {
   return (
-    <Card radius="sm" shadow="sm" fullWidth>
+    <Card className="max-w-xs h-min" radius="sm" shadow="sm" fullWidth>
       <CardBody>
         <p>Menu</p>
       </CardBody>

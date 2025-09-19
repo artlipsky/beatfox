@@ -1,12 +1,14 @@
 ---
 import Layout from '../../layouts/Layout.astro';
+import Header from '../../components/app/Header.tsx';
 import SideBar from '../../components/app/SideBar.tsx';
 import PageContent from '../../components/app/PageContent.tsx';
 ---
 
 <Layout title="Project Details - BeatFox">
+  <Header client:visible />
   <main
-    class="flex justify-center items-center bg-zinc-100 dark:bg-zinc-800 w-full min-h-screen"
+    class="flex justify-center items-stretch gap-4 mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 lg:py-16 w-full min-h-screen container"
   >
     <SideBar client:visible />
     <PageContent client:visible />
