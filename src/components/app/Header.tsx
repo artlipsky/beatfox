@@ -3,6 +3,9 @@ import {
   NavbarBrand,
   NavbarContent,
   NavbarItem,
+  NavbarMenuToggle,
+  NavbarMenu,
+  NavbarMenuItem,
   Link,
   Image,
   Skeleton,
@@ -22,12 +25,23 @@ import {
   ArrowRightCircleIcon,
 } from '@heroicons/react/16/solid';
 import { useLoaded } from '../../hooks/useLoaded';
+import { useState } from 'react';
 
 export default function Header() {
   const isLoaded = useLoaded(1000);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  const menuItems = [
+    { name: 'Profile', icon: UserIcon, shortcut: '⌘P' },
+    { name: 'Messages', icon: ChatBubbleLeftRightIcon, shortcut: '⌘M' },
+    { name: 'Tasks', icon: ClipboardDocumentListIcon, shortcut: '⌘T' },
+    { name: 'Properties', icon: HomeModernIcon, shortcut: '⌘H' },
+    { name: 'Payments', icon: CreditCardIcon, shortcut: '⌘Y' },
+    { name: 'Settings', icon: Cog6ToothIcon, shortcut: '⌘,' },
+  ];
 
   return (
-    <Navbar isBordered>
+    <Navbar isBordered isMenuOpen={isMenuOpen} onMenuOpenChange={setIsMenuOpen}>
       <NavbarBrand>
         <Skeleton isLoaded={isLoaded} className="rounded-lg">
           <Link
@@ -46,8 +60,8 @@ export default function Header() {
         </Skeleton>
       </NavbarBrand>
 
-      <NavbarContent justify="end">
-        <NavbarItem className="hidden lg:flex">
+      <NavbarContent className="hidden sm:flex" justify="end">
+        <NavbarItem>
           <Dropdown backdrop="blur" placement="bottom-end">
             <DropdownTrigger>
               <Skeleton isLoaded={isLoaded} className="rounded-lg">
@@ -64,70 +78,70 @@ export default function Header() {
               </Skeleton>
             </DropdownTrigger>
             <DropdownMenu aria-label="User menu actions">
-              <DropdownItem
-                key="profile"
-                variant="flat"
-                startContent={<UserIcon className="size-4" />}
-                shortcut="⌘P"
-              >
-                Profile
-              </DropdownItem>
-              <DropdownItem
-                key="messages"
-                variant="flat"
-                startContent={<ChatBubbleLeftRightIcon className="size-4" />}
-                shortcut="⌘M"
-              >
-                Messages
-              </DropdownItem>
-              <DropdownItem
-                key="tasks"
-                variant="flat"
-                startContent={<ClipboardDocumentListIcon className="size-4" />}
-                shortcut="⌘T"
-              >
-                Tasks
-              </DropdownItem>
-              <DropdownItem
-                key="properties"
-                startContent={<HomeModernIcon className="size-4" />}
-                shortcut="⌘H"
-                variant="flat"
-              >
-                Properties
-              </DropdownItem>
-              <DropdownItem
-                key="payments"
-                startContent={<CreditCardIcon className="size-4" />}
-                shortcut="⌘Y"
-                variant="flat"
-              >
-                Payments
-              </DropdownItem>
-              <DropdownItem
-                key="settings"
-                startContent={<Cog6ToothIcon className="size-4" />}
-                shortcut="⌘,"
-                showDivider
-                variant="flat"
-              >
-                Settings
-              </DropdownItem>
+              <>
+                {menuItems.map((item, index) => (
+                  <DropdownItem
+                    key={item.name.toLowerCase()}
+                    variant="flat"
+                    startContent={<item.icon className="size-4" />}
+                    shortcut={item.shortcut}
+                    showDivider={index === menuItems.length - 1}
+                  >
+                    {item.name}
+                  </DropdownItem>
+                ))}
 
-              <DropdownItem
-                className="text-danger"
-                key="logout"
-                startContent={<ArrowRightCircleIcon className="size-4" />}
-                shortcut="⌘Q"
-                color="danger"
-                variant="flat"
-              >
-                Log Out
-              </DropdownItem>
+                <DropdownItem
+                  className="text-danger"
+                  key="logout"
+                  startContent={<ArrowRightCircleIcon className="size-4" />}
+                  shortcut="⌘Q"
+                  color="danger"
+                  variant="flat"
+                >
+                  Log Out
+                </DropdownItem>
+              </>
             </DropdownMenu>
           </Dropdown>
         </NavbarItem>
       </NavbarContent>
+
+      <NavbarContent className="sm:hidden" justify="end">
+        <NavbarMenuToggle
+          className="cursor-pointer"
+          aria-label={isMenuOpen ? 'Close menu' : 'Open menu'}
+        />
+      </NavbarContent>
+
+      <NavbarMenu className="gap-4">
+        {menuItems.map((item, index) => (
+          <NavbarMenuItem key={`${item.name}-${index}`}>
+            <Link
+              underline="hover"
+              className="flex items-center gap-2 w-full"
+              color="foreground"
+              href="#"
+              size="lg"
+            >
+              <item.icon className="size-5" />
+              {item.name}
+            </Link>
+          </NavbarMenuItem>
+        ))}
+        <NavbarMenuItem>
+          <Link
+            underline="hover"
+            className="flex items-center gap-2 w-full"
+            color="danger"
+            href="#"
+            size="lg"
+          >
+            <ArrowRightCircleIcon className="size-5" />
+            Log Out
+          </Link>
+        </NavbarMenuItem>
+      </NavbarMenu>
     </Navbar>
   );
 }
