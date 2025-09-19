@@ -1,0 +1,21 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import Header from '../../app/components/Header';
+import SideBar from '../../app/components/SideBar.tsx';
+import PageContent from '../../app/components/PageContent.tsx';
+import AutoToast from '../../app/components/AutoToast.tsx';
+import ToastWrapper from '../../app/providers/ToastWrapper.tsx';
+---
+
+<Layout title="Project Details - BeatFox">
+  <Header client:visible />
+  <main
+    class="flex sm:flex-row flex-col justify-start items-stretch gap-4 mx-auto p-6 w-full max-w-5xl min-h-screen"
+  >
+    <SideBar client:visible />
+    <PageContent client:visible />
+  </main>
+  <ToastWrapper client:load>
+    <AutoToast client:load />
+  </ToastWrapper>
+</Layout>

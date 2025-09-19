@@ -15,6 +15,13 @@ export default [
       parser: tsparser,
       ecmaVersion: 'latest',
       sourceType: 'module',
+      globals: {
+        ...globalThis,
+        setTimeout: 'readonly',
+        clearTimeout: 'readonly',
+        window: 'readonly',
+        document: 'readonly',
+      },
       parserOptions: {
         ecmaFeatures: {
           jsx: true,
