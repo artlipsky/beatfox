@@ -117,6 +117,18 @@ PORT=3001
 3. Server runs on http://localhost:3001
 4. Client can make API calls to http://localhost:3001/api/*
 
+## Deployment
+
+### GitHub Pages (Client)
+
+The client is automatically deployed to GitHub Pages on every push to `master`:
+
+- **URL**: https://beatfox.ru
+- **Workflow**: `.github/workflows/deploy.yml`
+- **Build output**: `client/dist/`
+
+The workflow builds the Vite client and deploys it to GitHub Pages with the custom domain configured in `client/public/CNAME`.
+
 ## Next Steps
 
 - [ ] Add environment variables configuration
