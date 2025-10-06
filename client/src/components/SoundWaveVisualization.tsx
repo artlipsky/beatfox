@@ -363,6 +363,19 @@ function ControlPanel({
   onSourceUpdate,
   onToggleExpand,
 }: ControlPanelProps) {
+  const [expandedSources, setExpandedSources] = useState<Set<number>>(() => new Set([0]));
+
+  const toggleSourceCard = (index: number) => {
+    setExpandedSources((prev) => {
+      const next = new Set(prev);
+      if (next.has(index)) {
+        next.delete(index);
+      } else {
+        next.add(index);
+      }
+      return next;
+    });
+  };
 
   return (
     <div className="border-t border-slate-700/70 bg-slate-900/95 backdrop-blur">
@@ -428,32 +441,45 @@ function ControlPanel({
               const phaseDegrees = (source.phase * 180) / Math.PI;
               const periodMs = source.frequency > 0 ? 1000 / source.frequency : 0;
               const alignmentMs = periodMs * (source.phase / (2 * Math.PI));
+              const isCardExpanded = expandedSources.has(idx);
 
               return (
                 <div
                   key={idx}
                   className="rounded-xl border border-slate-700/50 bg-slate-800/50 p-4 shadow-lg backdrop-blur"
                 >
-                  <div className="mb-3 flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-sm font-semibold text-white">
+                  <button
+                    type="button"
+                    onClick={() => toggleSourceCard(idx)}
+                    className="mb-2 flex w-full items-center justify-between gap-3 text-left text-sm font-semibold text-white transition hover:text-blue-200"
+                    aria-expanded={isCardExpanded}
+                  >
+                    <span className="flex items-center gap-2">
                       <span>{profile?.label ?? `Source ${idx + 1}`}</span>
                       {profile?.badge && (
                         <span className="rounded-full border border-slate-700/80 bg-slate-900/70 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-slate-300">
                           {profile.badge}
                         </span>
                       )}
-                    </div>
-                    <div className={`h-3 w-3 rounded-full shadow-lg ${indicatorClass}`} />
-                  </div>
+                    </span>
+                    <span className="flex items-center gap-2 text-xs font-medium text-slate-300">
+                      <span className={`h-3 w-3 rounded-full shadow-lg ${indicatorClass}`} />
+                      <span className="rounded-full border border-slate-700/60 bg-slate-900/70 px-2 py-0.5 text-[10px] uppercase tracking-wide text-slate-400">
+                        {isCardExpanded ? 'Hide controls' : 'Show controls'}
+                      </span>
+                      <span aria-hidden>{isCardExpanded ? '▾' : '▸'}</span>
+                    </span>
+                  </button>
 
-                  <div className="space-y-3 text-left">
-                    <div>
-                      <div className="mb-1 flex items-baseline justify-between">
-                        <label className="text-xs font-medium text-slate-300">Crossover / Frequency</label>
-                        <span className="font-mono text-xs text-slate-400">
-                          {source.frequency.toFixed(0)} Hz
-                        </span>
-                      </div>
+                  {isCardExpanded && (
+                    <div className="mt-3 space-y-3 text-left">
+                      <div>
+                        <div className="mb-1 flex items-baseline justify-between">
+                          <label className="text-xs font-medium text-slate-300">Crossover / Frequency</label>
+                          <span className="font-mono text-xs text-slate-400">
+                            {source.frequency.toFixed(0)} Hz
+                          </span>
+                        </div>
                       <input
                         type="range"
                         min={FREQUENCY_RANGE.min}
@@ -469,13 +495,13 @@ function ControlPanel({
                       </div>
                     </div>
 
-                    <div>
-                      <div className="mb-1 flex items-baseline justify-between">
-                        <label className="text-xs font-medium text-slate-300">Gain Trim</label>
-                        <span className="font-mono text-xs text-slate-400">
-                          {gainDb >= 0 ? '+' : ''}{gainDb.toFixed(1)} dB
-                        </span>
-                      </div>
+                      <div>
+                        <div className="mb-1 flex items-baseline justify-between">
+                          <label className="text-xs font-medium text-slate-300">Gain Trim</label>
+                          <span className="font-mono text-xs text-slate-400">
+                            {gainDb >= 0 ? '+' : ''}{gainDb.toFixed(1)} dB
+                          </span>
+                        </div>
                       <input
                         type="range"
                         min={AMPLITUDE_RANGE.min}
@@ -490,13 +516,13 @@ function ControlPanel({
                       </div>
                     </div>
 
-                    <div>
-                      <div className="mb-1 flex items-baseline justify-between">
-                        <label className="text-xs font-medium text-slate-300">Phase / Delay</label>
-                        <span className="font-mono text-xs text-slate-400">
-                          {phaseDegrees.toFixed(0)}° · {alignmentMs.toFixed(1)} ms
-                        </span>
-                      </div>
+                      <div>
+                        <div className="mb-1 flex items-baseline justify-between">
+                          <label className="text-xs font-medium text-slate-300">Phase / Delay</label>
+                          <span className="font-mono text-xs text-slate-400">
+                            {phaseDegrees.toFixed(0)}° · {alignmentMs.toFixed(1)} ms
+                          </span>
+                        </div>
                       <input
                         type="range"
                         min={0}
@@ -506,11 +532,12 @@ function ControlPanel({
                         onChange={(e) => onSourceUpdate(idx, source.update('phase', parseFloat(e.target.value)))}
                         className="w-full accent-purple-500"
                       />
-                      <div className="mt-1 text-[11px] text-slate-400">
-                        {profile?.phaseHint ?? 'Offset arrival time to explore constructive vs destructive interference.'}
+                        <div className="mt-1 text-[11px] text-slate-400">
+                          {profile?.phaseHint ?? 'Offset arrival time to explore constructive vs destructive interference.'}
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  )}
                 </div>
               );
             })}
