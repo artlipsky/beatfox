@@ -11,6 +11,57 @@ import {
   type ColorMode,
 } from '../domain/acoustics/WavePhysics';
 
+const SOURCE_PROFILES = [
+  {
+    label: 'Left Mix Monitor',
+    badge: 'Control room',
+    indicatorClass: 'bg-emerald-500 shadow-emerald-500/50',
+    color: 0x22c55e,
+    frequencyHint: 'Sweep 80–150 Hz to nail crossover into the sub and keep the phantom center stable.',
+    amplitudeHint: 'Trim gain until the left channel matches the reference SPL at the mix chair.',
+    phaseHint: 'Use small offsets to collapse or widen the stereo image at the listening position.',
+    defaults: {
+      position: [-3, 0, -2] as const,
+      frequency: 110,
+      amplitude: 1.2,
+      phase: 0,
+    },
+  },
+  {
+    label: 'Right Mix Monitor',
+    badge: 'Control room',
+    indicatorClass: 'bg-sky-500 shadow-sky-500/50',
+    color: 0x0ea5e9,
+    frequencyHint: 'Mirror the left monitor and chase modal build-up between 60 Hz and 200 Hz.',
+    amplitudeHint: 'Match gain with the left channel to protect vocal clarity and imaging.',
+    phaseHint: 'Time-align against the left monitor to lock the phantom center.',
+    defaults: {
+      position: [3, 0, -2] as const,
+      frequency: 110,
+      amplitude: 1.2,
+      phase: Math.PI / 32,
+    },
+  },
+  {
+    label: 'Isolation Test Emitter',
+    badge: 'Build-out',
+    indicatorClass: 'bg-orange-500 shadow-orange-500/50',
+    color: 0xf97316,
+    frequencyHint: 'Run 63 Hz reference sweeps to evaluate wall assemblies and flanking paths.',
+    amplitudeHint: 'Push the source to expose weak studs, door seals, or glazing details.',
+    phaseHint: 'Offset phase to model staggered studs, resilient channels, or floated floors.',
+    defaults: {
+      position: [0, 0, 3] as const,
+      frequency: 63,
+      amplitude: 0.9,
+      phase: Math.PI / 4,
+    },
+  },
+] as const;
+
+const FREQUENCY_RANGE = { min: 40, max: 400, step: 5 } as const;
+const AMPLITUDE_RANGE = { min: 0.2, max: 3, step: 0.1 } as const;
+
 /**
  * Scene3D - Pure Three.js visualization
  */
@@ -233,7 +284,7 @@ function Scene3D({ sources, time, isPlaying, visualizationMode, onTimeUpdate }: 
     // Add new markers
     sources.forEach((source, idx) => {
       const geometry = new THREE.SphereGeometry(0.3, 16, 16);
-      const color = idx === 0 ? 0xef4444 : 0x3b82f6; // red or blue
+      const color = SOURCE_PROFILES[idx]?.color ?? 0x3b82f6;
       const material = new THREE.MeshStandardMaterial({
         color,
         emissive: color,
@@ -369,82 +420,100 @@ function ControlPanel({
       {isExpanded && (
         <div className="max-h-[350px] space-y-3 overflow-y-auto p-4">
           <div className="grid gap-3 md:grid-cols-2">
-            {sources.map((source, idx) => (
-              <div
-                key={idx}
-                className="rounded-xl border border-slate-700/50 bg-slate-800/50 p-4 shadow-lg backdrop-blur"
-              >
-                <div className="mb-3 flex items-center justify-between">
-                  <div className="text-sm font-semibold text-white">
-                    Source {idx + 1}
+            {sources.map((source, idx) => {
+              const profile = SOURCE_PROFILES[idx];
+              const indicatorClass = profile?.indicatorClass ?? 'bg-blue-500 shadow-blue-500/50';
+              const safeAmplitude = Math.max(source.amplitude, 0.001);
+              const gainDb = 20 * Math.log10(safeAmplitude);
+              const phaseDegrees = (source.phase * 180) / Math.PI;
+              const periodMs = source.frequency > 0 ? 1000 / source.frequency : 0;
+              const alignmentMs = periodMs * (source.phase / (2 * Math.PI));
+
+              return (
+                <div
+                  key={idx}
+                  className="rounded-xl border border-slate-700/50 bg-slate-800/50 p-4 shadow-lg backdrop-blur"
+                >
+                  <div className="mb-3 flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-sm font-semibold text-white">
+                      <span>{profile?.label ?? `Source ${idx + 1}`}</span>
+                      {profile?.badge && (
+                        <span className="rounded-full border border-slate-700/80 bg-slate-900/70 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-slate-300">
+                          {profile.badge}
+                        </span>
+                      )}
+                    </div>
+                    <div className={`h-3 w-3 rounded-full shadow-lg ${indicatorClass}`} />
                   </div>
-                  <div
-                    className={`h-3 w-3 rounded-full shadow-lg ${
-                      idx === 0 ? 'bg-red-500 shadow-red-500/50' : 'bg-blue-500 shadow-blue-500/50'
-                    }`}
-                  />
+
+                  <div className="space-y-3 text-left">
+                    <div>
+                      <div className="mb-1 flex items-baseline justify-between">
+                        <label className="text-xs font-medium text-slate-300">Crossover / Frequency</label>
+                        <span className="font-mono text-xs text-slate-400">
+                          {source.frequency.toFixed(0)} Hz
+                        </span>
+                      </div>
+                      <input
+                        type="range"
+                        min={FREQUENCY_RANGE.min}
+                        max={FREQUENCY_RANGE.max}
+                        step={FREQUENCY_RANGE.step}
+                        value={source.frequency}
+                        onChange={(e) => onSourceUpdate(idx, source.update('frequency', parseFloat(e.target.value)))}
+                        className="w-full accent-purple-500"
+                      />
+                      <div className="mt-1 flex items-center justify-between text-[11px] text-slate-400">
+                        <span>{profile?.frequencyHint ?? 'Set the fundamental you want to monitor.'}</span>
+                        <span className="font-mono text-xs text-slate-500">λ ≈ {source.wavelength.toFixed(2)} m</span>
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="mb-1 flex items-baseline justify-between">
+                        <label className="text-xs font-medium text-slate-300">Gain Trim</label>
+                        <span className="font-mono text-xs text-slate-400">
+                          {gainDb >= 0 ? '+' : ''}{gainDb.toFixed(1)} dB
+                        </span>
+                      </div>
+                      <input
+                        type="range"
+                        min={AMPLITUDE_RANGE.min}
+                        max={AMPLITUDE_RANGE.max}
+                        step={AMPLITUDE_RANGE.step}
+                        value={source.amplitude}
+                        onChange={(e) => onSourceUpdate(idx, source.update('amplitude', parseFloat(e.target.value)))}
+                        className="w-full accent-purple-500"
+                      />
+                      <div className="mt-1 text-[11px] text-slate-400">
+                        {profile?.amplitudeHint ?? 'Calibrate level for even coverage or isolation stress tests.'}
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="mb-1 flex items-baseline justify-between">
+                        <label className="text-xs font-medium text-slate-300">Phase / Delay</label>
+                        <span className="font-mono text-xs text-slate-400">
+                          {phaseDegrees.toFixed(0)}° · {alignmentMs.toFixed(1)} ms
+                        </span>
+                      </div>
+                      <input
+                        type="range"
+                        min={0}
+                        max={Math.PI * 2}
+                        step={0.1}
+                        value={source.phase}
+                        onChange={(e) => onSourceUpdate(idx, source.update('phase', parseFloat(e.target.value)))}
+                        className="w-full accent-purple-500"
+                      />
+                      <div className="mt-1 text-[11px] text-slate-400">
+                        {profile?.phaseHint ?? 'Offset arrival time to explore constructive vs destructive interference.'}
+                      </div>
+                    </div>
+                  </div>
                 </div>
-
-                <div className="space-y-3">
-                  <div>
-                    <div className="mb-1 flex items-baseline justify-between">
-                      <label className="text-xs font-medium text-slate-300">Frequency</label>
-                      <span className="font-mono text-xs text-slate-400">
-                        {source.frequency.toFixed(1)} Hz
-                      </span>
-                    </div>
-                    <input
-                      type="range"
-                      min="0.5"
-                      max="5"
-                      step="0.1"
-                      value={source.frequency}
-                      onChange={(e) => onSourceUpdate(idx, source.update('frequency', parseFloat(e.target.value)))}
-                      className="w-full accent-purple-500"
-                    />
-                    <div className="mt-1 text-right font-mono text-xs text-slate-500">
-                      λ = {source.wavelength.toFixed(1)}m
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="mb-1 flex items-baseline justify-between">
-                      <label className="text-xs font-medium text-slate-300">Amplitude</label>
-                      <span className="font-mono text-xs text-slate-400">
-                        {source.amplitude.toFixed(2)}
-                      </span>
-                    </div>
-                    <input
-                      type="range"
-                      min="0"
-                      max="3"
-                      step="0.1"
-                      value={source.amplitude}
-                      onChange={(e) => onSourceUpdate(idx, source.update('amplitude', parseFloat(e.target.value)))}
-                      className="w-full accent-purple-500"
-                    />
-                  </div>
-
-                  <div>
-                    <div className="mb-1 flex items-baseline justify-between">
-                      <label className="text-xs font-medium text-slate-300">Phase</label>
-                      <span className="font-mono text-xs text-slate-400">
-                        {((source.phase * 180) / Math.PI).toFixed(0)}°
-                      </span>
-                    </div>
-                    <input
-                      type="range"
-                      min="0"
-                      max={Math.PI * 2}
-                      step="0.1"
-                      value={source.phase}
-                      onChange={(e) => onSourceUpdate(idx, source.update('phase', parseFloat(e.target.value)))}
-                      className="w-full accent-purple-500"
-                    />
-                  </div>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           <div className="rounded-xl border border-blue-500/20 bg-blue-950/20 p-4">
@@ -472,10 +541,16 @@ export default function SoundWaveVisualization() {
   const [isPlaying, setIsPlaying] = useState(true);
   const [visualizationMode, setVisualizationMode] = useState<ColorMode>('displacement');
   const [isExpanded, setIsExpanded] = useState(true);
-  const [sources, setSources] = useState<WaveSource[]>([
-    new WaveSource([-4, 0, 0], 2, 1.5, 0),
-    new WaveSource([4, 0, 0], 2, 1.5, 0),
-  ]);
+  const [sources, setSources] = useState<WaveSource[]>(() =>
+    SOURCE_PROFILES.map((profile) =>
+      new WaveSource(
+        profile.defaults.position,
+        profile.defaults.frequency,
+        profile.defaults.amplitude,
+        profile.defaults.phase,
+      ),
+    )
+  );
   const [time, setTime] = useState(0);
 
   const handleSourceUpdate = (index: number, newSource: WaveSource) => {
