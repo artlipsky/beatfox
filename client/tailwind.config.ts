@@ -1,7 +1,7 @@
 import type { Config } from 'tailwindcss';
 
-const config: Config = {
-  darkMode: 'class'
-};
+// Tailwind CSS v4 configuration
+// Dark mode is configured in index.css using @variant
+const config: Config = {};
 
 export default config;

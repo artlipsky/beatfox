@@ -84,15 +84,12 @@ const LandingPage = () => {
                 Teams
               </a>
             </nav>
-            <div className="flex items-center gap-3">
-              <ThemeToggle />
-              <Link
-                to="/demo"
-                className="hidden rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200 md:inline-flex"
-              >
-                Launch demo
-              </Link>
-            </div>
+            <Link
+              to="/demo"
+              className="hidden rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200 md:inline-flex"
+            >
+              Launch demo
+            </Link>
           </div>
         </header>
 
@@ -312,7 +309,7 @@ const LandingPage = () => {
         <footer className="border-t border-slate-200/60 bg-white/70 py-8 text-sm text-slate-500 backdrop-blur dark:border-slate-800/80 dark:bg-slate-950/60 dark:text-slate-400">
           <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-4 text-center sm:flex-row sm:text-left lg:px-8">
             <span>© {new Date().getFullYear()} BeatFox Acoustic Intelligence</span>
-            <div className="flex flex-wrap justify-center gap-4">
+            <div className="flex flex-wrap items-center justify-center gap-4">
               <a className="transition hover:text-slate-900 dark:hover:text-white" href="#features">
                 Product
               </a>
@@ -322,6 +319,8 @@ const LandingPage = () => {
               <a className="transition hover:text-slate-900 dark:hover:text-white" href="mailto:hello@beatfox.io">
                 Contact
               </a>
+              <span className="hidden sm:inline text-slate-300 dark:text-slate-600">·</span>
+              <ThemeToggle />
             </div>
           </div>
         </footer>
