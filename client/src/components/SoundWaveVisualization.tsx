@@ -1,15 +1,26 @@
 import { useRef, useEffect, useState } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { acceleratedRaycast, computeBoundsTree, disposeBoundsTree } from 'three-mesh-bvh';
 import {
   WaveSource,
   AcousticConstants,
   generateWaveFieldGrid,
-  calculateWaveField,
+  calculateWaveDisplacementFromSource,
   displacementToColor,
   type Point3D,
   type ColorMode,
 } from '../domain/acoustics/WavePhysics';
+
+(THREE.BufferGeometry.prototype as unknown as { computeBoundsTree: typeof computeBoundsTree }).computeBoundsTree = computeBoundsTree;
+(THREE.BufferGeometry.prototype as unknown as { disposeBoundsTree: typeof disposeBoundsTree }).disposeBoundsTree = disposeBoundsTree;
+(THREE.Mesh.prototype as unknown as { raycast: typeof acceleratedRaycast }).raycast = acceleratedRaycast;
+
+const reflectionRaycaster = new THREE.Raycaster();
+const tempVecOrigin = new THREE.Vector3();
+const tempVecTarget = new THREE.Vector3();
+const tempVecDirection = new THREE.Vector3();
 
 const SOURCE_PROFILES = [
   {
@@ -61,6 +72,219 @@ const SOURCE_PROFILES = [
 
 const FREQUENCY_RANGE = { min: 40, max: 400, step: 5 } as const;
 const AMPLITUDE_RANGE = { min: 0.2, max: 3, step: 0.1 } as const;
+const LAYER_COUNT = 2;
+const LAYER_SPACING = 0.6;
+const VERTICAL_SCALE = 1.8;
+const WALL_HEIGHT = 2.6;
+const WALL_THICKNESS = 0.4;
+const HOUSE_WIDTH = 14;
+const HOUSE_DEPTH = 10;
+const DOOR_GAP = 2;
+
+type WallSegment = {
+  readonly position: readonly [number, number, number];
+  readonly size: readonly [number, number, number];
+  readonly material: 'exterior' | 'interior';
+};
+
+const WALL_SEGMENTS: readonly WallSegment[] = [
+  {
+    position: [0, WALL_HEIGHT / 2, -HOUSE_DEPTH / 2],
+    size: [HOUSE_WIDTH, WALL_HEIGHT, WALL_THICKNESS],
+    material: 'exterior',
+  },
+  {
+    position: [0, WALL_HEIGHT / 2, HOUSE_DEPTH / 2],
+    size: [HOUSE_WIDTH, WALL_HEIGHT, WALL_THICKNESS],
+    material: 'exterior',
+  },
+  {
+    position: [-HOUSE_WIDTH / 2, WALL_HEIGHT / 2, 0],
+    size: [WALL_THICKNESS, WALL_HEIGHT, HOUSE_DEPTH],
+    material: 'exterior',
+  },
+  {
+    position: [HOUSE_WIDTH / 2, WALL_HEIGHT / 2, 0],
+    size: [WALL_THICKNESS, WALL_HEIGHT, HOUSE_DEPTH],
+    material: 'exterior',
+  },
+  {
+    position: [-(DOOR_GAP / 2 + (HOUSE_WIDTH - DOOR_GAP) / 4), WALL_HEIGHT / 2, -2],
+    size: [(HOUSE_WIDTH - DOOR_GAP) / 2, WALL_HEIGHT, WALL_THICKNESS],
+    material: 'interior',
+  },
+  {
+    position: [DOOR_GAP / 2 + (HOUSE_WIDTH - DOOR_GAP) / 4, WALL_HEIGHT / 2, -2],
+    size: [(HOUSE_WIDTH - DOOR_GAP) / 2, WALL_HEIGHT, WALL_THICKNESS],
+    material: 'interior',
+  },
+  {
+    position: [-2.5, WALL_HEIGHT / 2, 0],
+    size: [WALL_THICKNESS, WALL_HEIGHT, 6],
+    material: 'interior',
+  },
+  {
+    position: [2.5, WALL_HEIGHT / 2, 1.5],
+    size: [WALL_THICKNESS, WALL_HEIGHT, 7],
+    material: 'interior',
+  },
+  {
+    position: [0, WALL_HEIGHT / 2, 3],
+    size: [6, WALL_HEIGHT, WALL_THICKNESS],
+    material: 'interior',
+  },
+] as const;
+
+const WALL_COLOR: Record<WallSegment['material'], number> = {
+  exterior: 0x1f2937,
+  interior: 0x334155,
+};
+
+const FLOOR_SIZE = { width: HOUSE_WIDTH + 1.5, depth: HOUSE_DEPTH + 1.5 } as const;
+const FLOOR_COLOR = 0x0b1220;
+const FLOOR_OPACITY = 0.92;
+
+type WallMaterialKey = WallSegment['material'];
+type WallReflectivity = Record<WallMaterialKey, number>;
+
+const DEFAULT_WALL_REFLECTIVITY: WallReflectivity = {
+  exterior: 0.65,
+  interior: 0.45,
+};
+
+type WallMeta = WallSegment & {
+  readonly normalAxis: 'x' | 'z';
+  readonly plane: number;
+};
+
+const WALL_META: readonly WallMeta[] = WALL_SEGMENTS.map((segment) => {
+  const normalAxis: 'x' | 'z' = segment.size[0] < segment.size[2] ? 'x' : 'z';
+  const plane = normalAxis === 'x' ? segment.position[0] : segment.position[2];
+  return {
+    ...segment,
+    normalAxis,
+    plane,
+  };
+});
+
+const EPSILON = 1e-6;
+
+interface ReflectionDescriptor {
+  readonly wall: WallMeta;
+  readonly baseSource: WaveSource;
+  readonly imageSource: WaveSource;
+}
+
+function createReflectionDescriptors(
+  sources: readonly WaveSource[],
+  wallReflectivity: WallReflectivity,
+): ReflectionDescriptor[] {
+  const descriptors: ReflectionDescriptor[] = [];
+
+  sources.forEach((source) => {
+    WALL_META.forEach((wall) => {
+      const reflectivity = wallReflectivity[wall.material];
+      if (reflectivity <= 0.01) return;
+
+      const axisIndex = wall.normalAxis === 'x' ? 0 : 2;
+      const sourceCoord = source.position[axisIndex];
+      const plane = wall.plane;
+      if (Math.abs(sourceCoord - plane) < WALL_THICKNESS / 2) return;
+
+      const mirroredPosition = mirrorPositionAcrossWall(source.position, wall);
+      const amplitude = source.amplitude * reflectivity;
+      if (amplitude <= 0.001) return;
+
+      const phaseShift = wall.material === 'exterior' ? Math.PI : Math.PI / 2;
+      const imageSource = new WaveSource(
+        [mirroredPosition[0], mirroredPosition[1], mirroredPosition[2]],
+        source.frequency,
+        amplitude,
+        (source.phase + phaseShift) % (Math.PI * 2),
+      );
+
+      descriptors.push({ wall, baseSource: source, imageSource });
+    });
+  });
+
+  return descriptors;
+}
+
+function mirrorPositionAcrossWall(position: readonly [number, number, number], wall: WallMeta): readonly [number, number, number] {
+  if (wall.normalAxis === 'x') {
+    const mirroredX = wall.plane * 2 - position[0];
+    return [mirroredX, position[1], position[2]] as const;
+  }
+  const mirroredZ = wall.plane * 2 - position[2];
+  return [position[0], position[1], mirroredZ] as const;
+}
+
+function isSameSide(a: number, b: number, plane: number): boolean {
+  const da = a - plane;
+  const db = b - plane;
+  if (Math.abs(da) < EPSILON || Math.abs(db) < EPSILON) return true;
+  return da * db > 0;
+}
+
+function isReflectionPathValid(
+  point: Point3D,
+  imagePosition: readonly [number, number, number],
+  wall: WallMeta,
+  wallBVHMesh: THREE.Mesh | null,
+  wallFaceLookup: Uint16Array | null,
+): boolean {
+  const axisIndex = wall.normalAxis === 'x' ? 0 : 2;
+  const plane = wall.plane;
+  const pointCoord = axisIndex === 0 ? point.x : point.z;
+  const imageCoord = axisIndex === 0 ? imagePosition[0] : imagePosition[2];
+  const denom = pointCoord - imageCoord;
+
+  if (Math.abs(denom) < EPSILON) return false;
+
+  const t = (plane - imageCoord) / denom;
+  if (t <= 0 || t >= 1) return false;
+
+  const intersectX = imagePosition[0] + (point.x - imagePosition[0]) * t;
+  const intersectY = imagePosition[1] + (point.y - imagePosition[1]) * t;
+  const intersectZ = imagePosition[2] + (point.z - imagePosition[2]) * t;
+
+  if (Math.abs(intersectX - wall.position[0]) > wall.size[0] / 2 + EPSILON) return false;
+  if (Math.abs(intersectZ - wall.position[2]) > wall.size[2] / 2 + EPSILON) return false;
+  if (intersectY < 0 || intersectY > wall.size[1] + EPSILON) return false;
+
+  if (!wallBVHMesh || !wallFaceLookup) {
+    return true;
+  }
+
+  const origin = tempVecOrigin.set(imagePosition[0], imagePosition[1], imagePosition[2]);
+  const target = tempVecTarget.set(point.x, point.y, point.z);
+  tempVecDirection.subVectors(target, origin);
+  const distance = tempVecDirection.length();
+  if (distance < EPSILON) {
+    return false;
+  }
+
+  tempVecDirection.normalize();
+  reflectionRaycaster.set(origin, tempVecDirection);
+  reflectionRaycaster.far = distance - EPSILON;
+  const hits = reflectionRaycaster.intersectObject(wallBVHMesh, false);
+  if (!hits.length) {
+    return false;
+  }
+
+  const firstHit = hits[0];
+  const faceIndex = firstHit.faceIndex ?? 0;
+  const wallIndex = wallFaceLookup[faceIndex];
+  return WALL_META[wallIndex] === wall;
+}
+
+function isPointInsideWall(segment: WallSegment, point: Point3D): boolean {
+  const halfWidth = segment.size[0] / 2;
+  const halfDepth = segment.size[2] / 2;
+  const dx = Math.abs(point.x - segment.position[0]);
+  const dz = Math.abs(point.z - segment.position[2]);
+  return dx <= halfWidth && dz <= halfDepth;
+}
 
 /**
  * Scene3D - Pure Three.js visualization
@@ -71,9 +295,10 @@ interface Scene3DProps {
   isPlaying: boolean;
   visualizationMode: ColorMode;
   onTimeUpdate: (t: number) => void;
+  wallReflectivity: WallReflectivity;
 }
 
-function Scene3D({ sources, time, isPlaying, visualizationMode, onTimeUpdate }: Scene3DProps) {
+function Scene3D({ sources, time, isPlaying, visualizationMode, onTimeUpdate, wallReflectivity }: Scene3DProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
@@ -81,6 +306,11 @@ function Scene3D({ sources, time, isPlaying, visualizationMode, onTimeUpdate }: 
   const controlsRef = useRef<OrbitControls | null>(null);
   const pointsRef = useRef<THREE.Points | null>(null);
   const gridPointsRef = useRef<Point3D[]>([]);
+  const layerFactorRef = useRef<number[]>([]);
+  const obstructionMaskRef = useRef<Uint8Array>(new Uint8Array());
+  const structuralGroupRef = useRef<THREE.Group | null>(null);
+  const wallBVHMeshRef = useRef<THREE.Mesh | null>(null);
+  const wallFaceLookupRef = useRef<Uint16Array | null>(null);
   const animationRef = useRef<number | null>(null);
   const timeRef = useRef(0);
   const sourceMarkersRef = useRef<THREE.Mesh[]>([]);
@@ -146,9 +376,99 @@ function Scene3D({ sources, time, isPlaying, visualizationMode, onTimeUpdate }: 
     gridHelper.position.y = 0;
     scene.add(gridHelper);
 
+    const structuralGroup = new THREE.Group();
+
+    const floorGeometry = new THREE.PlaneGeometry(FLOOR_SIZE.width, FLOOR_SIZE.depth);
+    const floorMaterial = new THREE.MeshStandardMaterial({
+      color: FLOOR_COLOR,
+      side: THREE.DoubleSide,
+      transparent: true,
+      opacity: FLOOR_OPACITY,
+      roughness: 0.85,
+      metalness: 0.05,
+    });
+    const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+    floor.rotation.x = -Math.PI / 2;
+    floor.position.y = -0.02;
+    structuralGroup.add(floor);
+
+    const bvhGeometries: THREE.BufferGeometry[] = [];
+    const faceLookup: number[] = [];
+
+    WALL_SEGMENTS.forEach((segment, idx) => {
+      const geometryForBVH = new THREE.BoxGeometry(segment.size[0], segment.size[1], segment.size[2]);
+      geometryForBVH.translate(segment.position[0], segment.position[1], segment.position[2]);
+      const indexAttr = geometryForBVH.index;
+      const triangleCount = (indexAttr ? indexAttr.count : geometryForBVH.attributes.position.count) / 3;
+      for (let i = 0; i < triangleCount; i += 1) {
+        faceLookup.push(idx);
+      }
+      bvhGeometries.push(geometryForBVH);
+    });
+
+    const mergedWallsGeometry = mergeGeometries(bvhGeometries, true);
+    bvhGeometries.forEach((geometry) => geometry.dispose());
+
+    if (mergedWallsGeometry) {
+      mergedWallsGeometry.computeBoundsTree();
+      wallFaceLookupRef.current = new Uint16Array(faceLookup);
+      wallBVHMeshRef.current = new THREE.Mesh(
+        mergedWallsGeometry,
+        new THREE.MeshBasicMaterial({ visible: false })
+      );
+    } else {
+      wallFaceLookupRef.current = null;
+      wallBVHMeshRef.current = null;
+    }
+
+    WALL_SEGMENTS.forEach((segment) => {
+      const geometry = new THREE.BoxGeometry(segment.size[0], segment.size[1], segment.size[2]);
+      const reflectivity = DEFAULT_WALL_REFLECTIVITY[segment.material];
+      const opacity = Math.min(0.98, 0.55 + reflectivity * 0.35);
+      const color = new THREE.Color(WALL_COLOR[segment.material]).multiplyScalar(0.75 + reflectivity * 0.25);
+      const material = new THREE.MeshStandardMaterial({
+        color,
+        transparent: true,
+        opacity,
+        roughness: 0.85,
+        metalness: 0.05 + reflectivity * 0.05,
+      });
+      const wall = new THREE.Mesh(geometry, material);
+      wall.position.set(segment.position[0], segment.position[1], segment.position[2]);
+      wall.userData = {
+        ...wall.userData,
+        wallMaterial: segment.material,
+      };
+      structuralGroup.add(wall);
+    });
+
+    scene.add(structuralGroup);
+    structuralGroupRef.current = structuralGroup;
+
     // Generate wave field grid points (memoized)
-    const gridPoints = generateWaveFieldGrid(20, 80);
+    const layerOffsets = Array.from({ length: LAYER_COUNT }, (_, layerIdx) => {
+      const centeredIndex = layerIdx - (LAYER_COUNT - 1) / 2;
+      return centeredIndex * LAYER_SPACING;
+    });
+
+    const gridPoints: Point3D[] = [];
+    const layerFactors: number[] = [];
+    layerOffsets.forEach((offset, layerIdx) => {
+      const layerPoints = generateWaveFieldGrid(20, 80, offset);
+      const factor = LAYER_COUNT > 1 ? layerIdx / (LAYER_COUNT - 1) : 0.5;
+      gridPoints.push(...layerPoints);
+      layerPoints.forEach(() => layerFactors.push(factor));
+    });
+
     gridPointsRef.current = gridPoints;
+    layerFactorRef.current = layerFactors;
+
+    const obstructionMask = new Uint8Array(gridPoints.length);
+    gridPoints.forEach((point, idx) => {
+      const blocked = WALL_SEGMENTS.some((segment) => isPointInsideWall(segment, point));
+      obstructionMask[idx] = blocked ? 1 : 0;
+    });
+    obstructionMaskRef.current = obstructionMask;
 
     // Create points geometry for wave field
     const geometry = new THREE.BufferGeometry();
@@ -159,9 +479,11 @@ function Scene3D({ sources, time, isPlaying, visualizationMode, onTimeUpdate }: 
       positions[i * 3] = point.x;
       positions[i * 3 + 1] = point.y;
       positions[i * 3 + 2] = point.z;
-      colors[i * 3] = 1;
-      colors[i * 3 + 1] = 1;
-      colors[i * 3 + 2] = 1;
+      const layerFactor = layerFactors[i] ?? 0.5;
+      const brightness = 0.6 + layerFactor * 0.35;
+      colors[i * 3] = brightness;
+      colors[i * 3 + 1] = brightness;
+      colors[i * 3 + 2] = brightness;
     });
 
     geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
@@ -222,6 +544,29 @@ function Scene3D({ sources, time, isPlaying, visualizationMode, onTimeUpdate }: 
         renderer.dispose();
         container.removeChild(renderer.domElement);
       }
+      if (structuralGroupRef.current) {
+        structuralGroupRef.current.children.forEach((child) => {
+          if ((child as THREE.Mesh).isMesh) {
+            const mesh = child as THREE.Mesh;
+            mesh.geometry.dispose();
+            const meshMaterial = mesh.material;
+            if (Array.isArray(meshMaterial)) {
+              meshMaterial.forEach((mat) => mat.dispose());
+            } else {
+              (meshMaterial as THREE.Material).dispose();
+            }
+          }
+        });
+        scene.remove(structuralGroupRef.current);
+        structuralGroupRef.current = null;
+      }
+      if (wallBVHMeshRef.current) {
+        const { geometry } = wallBVHMeshRef.current;
+        (geometry as unknown as { disposeBoundsTree?: () => void }).disposeBoundsTree?.();
+        geometry.dispose();
+        wallBVHMeshRef.current = null;
+        wallFaceLookupRef.current = null;
+      }
       if (geometry) {
         geometry.dispose();
       }
@@ -231,41 +576,118 @@ function Scene3D({ sources, time, isPlaying, visualizationMode, onTimeUpdate }: 
     };
   }, []);
 
+  useEffect(() => {
+    if (!structuralGroupRef.current) return;
+
+    structuralGroupRef.current.children.forEach((child) => {
+      if (!(child as THREE.Mesh).isMesh) return;
+      const mesh = child as THREE.Mesh & { userData?: { wallMaterial?: WallMaterialKey } };
+      const wallMaterialKey = mesh.userData?.wallMaterial as WallMaterialKey | undefined;
+      if (!wallMaterialKey) return;
+
+      const reflectivity = wallReflectivity[wallMaterialKey];
+      const newOpacity = Math.min(0.98, 0.55 + reflectivity * 0.35);
+      const colorScalar = 0.75 + reflectivity * 0.25;
+      const baseColor = new THREE.Color(WALL_COLOR[wallMaterialKey]);
+      const updatedColor = baseColor.multiplyScalar(colorScalar);
+
+      const applyMaterialAdjustments = (standardMat: THREE.MeshStandardMaterial) => {
+        standardMat.opacity = newOpacity;
+        standardMat.color.copy(updatedColor);
+        standardMat.metalness = 0.05 + reflectivity * 0.05;
+        standardMat.roughness = 0.85;
+        standardMat.needsUpdate = true;
+      };
+
+      const meshMaterial = mesh.material;
+      if (Array.isArray(meshMaterial)) {
+        meshMaterial.forEach((mat) => {
+          if ((mat as THREE.MeshStandardMaterial).isMeshStandardMaterial) {
+            applyMaterialAdjustments(mat as THREE.MeshStandardMaterial);
+          }
+        });
+      } else if ((meshMaterial as THREE.MeshStandardMaterial).isMeshStandardMaterial) {
+        applyMaterialAdjustments(meshMaterial as THREE.MeshStandardMaterial);
+      }
+    });
+  }, [wallReflectivity]);
+
   // Update wave field based on sources and time
   useEffect(() => {
     if (!pointsRef.current || !gridPointsRef.current.length) return;
 
     const points = pointsRef.current;
     const gridPoints = gridPointsRef.current;
+    const layerFactors = layerFactorRef.current;
+    const obstructionMask = obstructionMaskRef.current;
+    const wallBVHMesh = wallBVHMeshRef.current;
+    const wallFaceLookup = wallFaceLookupRef.current;
     const posArray = points.geometry.attributes.position.array as Float32Array;
     const colArray = points.geometry.attributes.color.array as Float32Array;
 
-    // Calculate wave field using domain logic
-    const waveField = calculateWaveField(gridPoints, sources, time);
+    const reflectionDescriptors = createReflectionDescriptors(sources, wallReflectivity);
+    const displacements = new Float32Array(gridPoints.length);
+    let maxAbsDisplacement = 0;
 
-    // Update positions and colors
-    gridPoints.forEach((_, idx) => {
-      const displacement = waveField.displacements[idx];
+    gridPoints.forEach((point, idx) => {
+      if (obstructionMask[idx] === 1) {
+        displacements[idx] = 0;
+        return;
+      }
 
-      // Update Y position based on wave displacement
-      posArray[idx * 3 + 1] = displacement * 2;
+      let totalDisplacement = 0;
 
-      // Normalize displacement for color mapping
-      const normalizedDisp = waveField.maxDisplacement > 0
-        ? displacement / waveField.maxDisplacement
-        : 0;
+      sources.forEach((source) => {
+        totalDisplacement += calculateWaveDisplacementFromSource(point, source, time);
+      });
 
-      // Get color from domain function
+      reflectionDescriptors.forEach(({ wall, baseSource, imageSource }) => {
+        const axisIndex = wall.normalAxis === 'x' ? 0 : 2;
+        const pointCoord = axisIndex === 0 ? point.x : point.z;
+        const sourceCoord = baseSource.position[axisIndex];
+        if (!isSameSide(sourceCoord, pointCoord, wall.plane)) return;
+        if (!isReflectionPathValid(point, imageSource.position, wall, wallBVHMesh, wallFaceLookup)) return;
+        totalDisplacement += calculateWaveDisplacementFromSource(point, imageSource, time);
+      });
+
+      displacements[idx] = totalDisplacement;
+      const absDisp = Math.abs(totalDisplacement);
+      if (absDisp > maxAbsDisplacement) {
+        maxAbsDisplacement = absDisp;
+      }
+    });
+
+    const normalization = maxAbsDisplacement > EPSILON ? maxAbsDisplacement : 1;
+
+    gridPoints.forEach((point, idx) => {
+      const isBlocked = obstructionMask[idx] === 1;
+      if (isBlocked) {
+        const layerFactor = layerFactors[idx] ?? 0.5;
+        const wallShade = 0.2 + layerFactor * 0.15;
+        posArray[idx * 3 + 1] = point.y;
+        colArray[idx * 3] = wallShade;
+        colArray[idx * 3 + 1] = wallShade;
+        colArray[idx * 3 + 2] = wallShade;
+        return;
+      }
+
+      const displacement = displacements[idx];
+      posArray[idx * 3 + 1] = point.y + displacement * VERTICAL_SCALE;
+
+      const normalizedDisp = displacement / normalization;
       const [r, g, b] = displacementToColor(normalizedDisp, visualizationMode);
 
-      colArray[idx * 3] = r;
-      colArray[idx * 3 + 1] = g;
-      colArray[idx * 3 + 2] = b;
+      const layerFactor = layerFactors[idx] ?? 0.5;
+      const brightness = 0.75 + layerFactor * 0.25;
+
+      colArray[idx * 3] = r * brightness;
+      colArray[idx * 3 + 1] = g * brightness;
+      colArray[idx * 3 + 2] = b * brightness;
     });
 
     points.geometry.attributes.position.needsUpdate = true;
     points.geometry.attributes.color.needsUpdate = true;
-  }, [sources, time, visualizationMode]);
+  }, [sources, time, visualizationMode, wallReflectivity]);
 
   // Update source markers
   useEffect(() => {
@@ -351,6 +773,8 @@ interface ControlPanelProps {
   onVisualizationModeChange: (mode: ColorMode) => void;
   onSourceUpdate: (index: number, source: WaveSource) => void;
   onToggleExpand: () => void;
+  wallReflectivity: WallReflectivity;
+  onWallReflectivityChange: (material: WallMaterialKey, value: number) => void;
 }
 
 function ControlPanel({
@@ -362,6 +786,8 @@ function ControlPanel({
   onVisualizationModeChange,
   onSourceUpdate,
   onToggleExpand,
+  wallReflectivity,
+  onWallReflectivityChange,
 }: ControlPanelProps) {
   const [expandedSources, setExpandedSources] = useState<Set<number>>(() => new Set([0]));
 
@@ -543,6 +969,30 @@ function ControlPanel({
             })}
           </div>
 
+          <div className="rounded-xl border border-slate-700/50 bg-slate-800/50 p-4 shadow-lg backdrop-blur">
+            <div className="mb-3 text-sm font-semibold text-white">Wall reflectivity</div>
+            <p className="mb-4 text-xs text-slate-400">
+              Control how much energy each surface reflects back into the layout. Higher values mimic hard drywall or glazing, lower values approximate absorptive treatments.
+            </p>
+            {(['interior', 'exterior'] as WallMaterialKey[]).map((materialKey) => (
+              <div key={materialKey} className="mb-4 last:mb-0">
+                <div className="mb-1 flex items-baseline justify-between">
+                  <label className="text-xs font-medium text-slate-300 capitalize">{materialKey} partitions</label>
+                  <span className="font-mono text-xs text-slate-400">{Math.round(wallReflectivity[materialKey] * 100)}%</span>
+                </div>
+                <input
+                  type="range"
+                  min={0}
+                  max={0.9}
+                  step={0.05}
+                  value={wallReflectivity[materialKey]}
+                  onChange={(event) => onWallReflectivityChange(materialKey, parseFloat(event.target.value))}
+                  className="w-full accent-blue-500"
+                />
+              </div>
+            ))}
+          </div>
+
           <div className="rounded-xl border border-blue-500/20 bg-blue-950/20 p-4">
             <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-blue-300">
               <span>ℹ️</span>
@@ -568,6 +1018,9 @@ export default function SoundWaveVisualization() {
   const [isPlaying, setIsPlaying] = useState(true);
   const [visualizationMode, setVisualizationMode] = useState<ColorMode>('displacement');
   const [isExpanded, setIsExpanded] = useState(true);
+  const [wallReflectivity, setWallReflectivity] = useState<WallReflectivity>(() => ({
+    ...DEFAULT_WALL_REFLECTIVITY,
+  }));
   const [sources, setSources] = useState<WaveSource[]>(() =>
     SOURCE_PROFILES.map((profile) =>
       new WaveSource(
@@ -588,6 +1041,14 @@ export default function SoundWaveVisualization() {
     });
   };
 
+  const handleWallReflectivityChange = (material: WallMaterialKey, value: number) => {
+    const clampedValue = Math.max(0, Math.min(0.95, value));
+    setWallReflectivity((prev) => ({
+      ...prev,
+      [material]: clampedValue,
+    }));
+  };
+
   return (
     <div className="flex h-full w-full flex-col">
       <div className="relative flex-1 min-h-0">
@@ -597,6 +1058,7 @@ export default function SoundWaveVisualization() {
           isPlaying={isPlaying}
           visualizationMode={visualizationMode}
           onTimeUpdate={setTime}
+          wallReflectivity={wallReflectivity}
         />
         <InfoOverlay />
       </div>
@@ -611,6 +1073,8 @@ export default function SoundWaveVisualization() {
           onVisualizationModeChange={setVisualizationMode}
           onSourceUpdate={handleSourceUpdate}
           onToggleExpand={() => setIsExpanded(!isExpanded)}
+          wallReflectivity={wallReflectivity}
+          onWallReflectivityChange={handleWallReflectivityChange}
         />
       </div>
     </div>
