@@ -14,7 +14,7 @@ const OPTIONS: ThemeOption[] = [
 ];
 
 const ThemeToggle = () => {
-  const { theme, resolvedTheme, setTheme } = useTheme();
+  const { theme, systemTheme, setTheme } = useTheme();
   const [isFocused, setIsFocused] = useState(false);
 
   return (
@@ -29,7 +29,7 @@ const ThemeToggle = () => {
         const isActive = theme === option.value;
         const title =
           option.value === 'system'
-            ? `Match system preference (currently ${resolvedTheme})`
+            ? `Match system preference (currently ${systemTheme})`
             : `Switch to ${option.label.toLowerCase()} theme`;
 
         return (
@@ -49,9 +49,9 @@ const ThemeToggle = () => {
           >
             <span aria-hidden>{option.icon}</span>
             <span className="hidden sm:inline">{option.label}</span>
-            {option.value === 'system' && (
+            {option.value === 'system' && theme === 'system' && (
               <span className="hidden text-[10px] uppercase tracking-wide text-slate-400 dark:text-slate-500 lg:inline">
-                {resolvedTheme}
+                {systemTheme}
               </span>
             )}
           </button>

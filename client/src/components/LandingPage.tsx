@@ -169,7 +169,7 @@ const LandingPage = () => {
                   <div className="rounded-2xl border border-slate-200/80 bg-slate-900/90 px-5 py-4 text-sm text-white shadow-inner dark:border-slate-700 dark:bg-slate-100 dark:text-slate-900">
                     <div className="flex items-center justify-between">
                       <span className="font-semibold">Clarity @ Listener B</span>
-                      <span className="rounded-full bg-white/20 px-3 py-1 text-xs font-medium tracking-wide dark:bg-slate-900/80">
+                      <span className="rounded-full bg-white/20 px-3 py-1 text-xs font-medium tracking-wide text-white dark:bg-slate-900/80 dark:text-slate-100">
                         +3.7 dB
                       </span>
                     </div>

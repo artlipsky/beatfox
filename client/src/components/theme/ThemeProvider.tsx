@@ -1,10 +1,19 @@
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode
+} from 'react';
 
 type Theme = 'light' | 'dark' | 'system';
+type ResolvedTheme = 'light' | 'dark';
 
 type ThemeContextValue = {
   theme: Theme;
-  resolvedTheme: 'light' | 'dark';
+  resolvedTheme: ResolvedTheme;
+  systemTheme: ResolvedTheme;
   setTheme: (theme: Theme) => void;
 };
 
@@ -23,22 +32,25 @@ const getInitialTheme = (): Theme => {
   return 'system';
 };
 
-const getInitialResolvedTheme = (): 'light' | 'dark' => {
+const getInitialResolvedTheme = (): ResolvedTheme => {
   if (typeof window === 'undefined') return 'light';
   return prefersDark() ? 'dark' : 'light';
 };
 
-export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
+export const ThemeProvider = ({ children }: { children: ReactNode }) => {
   const [theme, setThemeState] = useState<Theme>(() => getInitialTheme());
-  const [resolvedTheme, setResolvedTheme] = useState<'light' | 'dark'>(() => getInitialResolvedTheme());
+  const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>(() => getInitialResolvedTheme());
+  const [systemTheme, setSystemTheme] = useState<ResolvedTheme>(() => getInitialResolvedTheme());
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
     const media = window.matchMedia('(prefers-color-scheme: dark)');
 
-    const applyTheme = (value: Theme) => {
-      const shouldUseDark = value === 'dark' || (value === 'system' && media.matches);
+    const applyTheme = (mode: Theme) => {
+      const preference: ResolvedTheme = media.matches ? 'dark' : 'light';
+      setSystemTheme(preference);
+      const shouldUseDark = mode === 'dark' || (mode === 'system' && preference === 'dark');
       document.documentElement.classList.toggle('dark', shouldUseDark);
       document.documentElement.style.colorScheme = shouldUseDark ? 'dark' : 'light';
       setResolvedTheme(shouldUseDark ? 'dark' : 'light');
@@ -49,6 +61,9 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
     const handleChange = () => {
       if (theme === 'system') {
         applyTheme('system');
+      } else {
+        const preference: ResolvedTheme = media.matches ? 'dark' : 'light';
+        setSystemTheme(preference);
       }
     };
 
@@ -67,9 +82,10 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
     () => ({
       theme,
       resolvedTheme,
+      systemTheme,
       setTheme
     }),
-    [theme, resolvedTheme]
+    [theme, resolvedTheme, systemTheme]
   );
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
