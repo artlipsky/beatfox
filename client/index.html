@@ -4,7 +4,21 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>client</title>
+    <title>BeatFox - 3D Acoustic Simulation</title>
+    <meta
+      name="description"
+      content="Analyze, simulate, and optimize sound propagation in 3D spaces. Professional acoustic simulation for rooms, buildings, and architectural environments."
+    />
+    <script>
+      (function () {
+        const storageKey = 'beatfox-ui-theme';
+        const storedTheme = localStorage.getItem(storageKey);
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const resolved = storedTheme === 'dark' || (storedTheme !== 'light' && prefersDark) ? 'dark' : 'light';
+        document.documentElement.classList.toggle('dark', resolved === 'dark');
+        document.documentElement.style.colorScheme = resolved;
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
