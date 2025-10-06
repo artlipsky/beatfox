@@ -116,7 +116,7 @@ make dev-local
 make remove-hosts
 ```
 
-The client automatically detects whether you're using `localhost` or `beatfox.local` and configures the API URL accordingly.
+The application uses `beatfox.local` domain exclusively for development.
 
 ### Install Dependencies
 
@@ -142,11 +142,11 @@ npm run dev
 Or run them separately:
 
 ```bash
-# Terminal 1 - Client (http://localhost:5173)
-npm run dev:client
+# Terminal 1 - Client (http://beatfox.local:5173)
+make dev-client
 
-# Terminal 2 - Server (http://localhost:3001)
-npm run dev:server
+# Terminal 2 - Server (http://beatfox.local:3001)
+make dev-server
 ```
 
 ### Production Build
@@ -254,30 +254,23 @@ make clean            # Remove node_modules and build artifacts
 
 ## Environment Variables
 
-### Client
-The client automatically detects the API URL based on the current hostname. To override:
-
-Create `client/.env` file:
-```
-VITE_API_URL=http://localhost:3001
-# Or for beatfox.local
-VITE_API_URL=http://beatfox.local:3001
-```
-
-See `client/.env.example` for reference.
-
 ### Server
-Create `server/.env` file:
+Create `server/.env` file (optional):
 ```
 PORT=3001
+NODE_ENV=development
+ALLOWED_ORIGINS=http://beatfox.local:5173
 ```
+
+See `server/.env.example` for reference.
 
 ## Development Workflow
 
-1. Start both servers: `npm run dev`
-2. Client runs on http://localhost:5173
-3. Server runs on http://localhost:3001
-4. Client can make API calls to http://localhost:3001/api/*
+1. Run: `make dev`
+2. Client: http://beatfox.local:5173
+3. Server: http://beatfox.local:3001
+
+The command automatically configures `/etc/hosts` with the beatfox.local domain.
 
 ## Deployment
 
