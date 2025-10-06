@@ -545,7 +545,7 @@ function Scene3D({ sources, time, isPlaying, visualizationMode, onTimeUpdate, wa
         container.removeChild(renderer.domElement);
       }
       if (structuralGroupRef.current) {
-        structuralGroupRef.current.children.forEach((child) => {
+        structuralGroupRef.current.children.forEach((child: THREE.Object3D) => {
           if ((child as THREE.Mesh).isMesh) {
             const mesh = child as THREE.Mesh;
             mesh.geometry.dispose();
@@ -579,7 +579,7 @@ function Scene3D({ sources, time, isPlaying, visualizationMode, onTimeUpdate, wa
   useEffect(() => {
     if (!structuralGroupRef.current) return;
 
-    structuralGroupRef.current.children.forEach((child) => {
+    structuralGroupRef.current.children.forEach((child: THREE.Object3D) => {
       if (!(child as THREE.Mesh).isMesh) return;
       const mesh = child as THREE.Mesh & { userData?: { wallMaterial?: WallMaterialKey } };
       const wallMaterialKey = mesh.userData?.wallMaterial as WallMaterialKey | undefined;

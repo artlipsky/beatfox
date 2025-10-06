@@ -18,5 +18,7 @@
     "start:server": "npm run start --workspace=server",
     "lint": "npm run lint --workspace=client"
   },
-  "devDependencies": {}
+  "devDependencies": {
+    "@types/three": "^0.180.0"
+  }
 }
