@@ -1,26 +1,31 @@
-import express, { Request, Response } from 'express';
-import cors from 'cors';
+import { createApp } from './app.js';
+import { config } from './config/index.js';
 
-const app = express();
-const PORT = process.env.PORT || 3001;
+const startServer = (): void => {
+  const app = createApp();
 
-// Middleware
-app.use(cors());
-app.use(express.json());
-
-// Routes
-app.get('/api/health', (_req: Request, res: Response) => {
-  res.json({ status: 'ok', message: 'Server is running' });
-});
-
-app.get('/api/data', (_req: Request, res: Response) => {
-  res.json({
-    message: 'Hello from BeatFox API',
-    timestamp: new Date().toISOString(),
+  const server = app.listen(config.server.port, config.server.host, () => {
+    console.log('🚀 Server started successfully');
+    console.log(`   Environment: ${config.nodeEnv}`);
+    console.log(`   Domain: http://${config.domain}:${config.server.port}`);
   });
-});
 
-// Start server
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on http://localhost:${PORT}`);
-});
+  const shutdown = (signal: string) => {
+    console.log(`\n${signal} received, shutting down gracefully...`);
+    server.close(() => {
+      console.log('Server closed');
+      process.exit(0);
+    });
+
+    // Force shutdown after 10 seconds
+    setTimeout(() => {
+      console.error('Forced shutdown after timeout');
+      process.exit(1);
+    }, 10000);
+  };
+
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
+  process.on('SIGINT', () => shutdown('SIGINT'));
+};
+
+startServer();
