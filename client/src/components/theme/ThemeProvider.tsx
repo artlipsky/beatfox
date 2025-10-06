@@ -1,5 +1,6 @@
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -23,6 +24,11 @@ const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
 
 const prefersDark = () => window.matchMedia('(prefers-color-scheme: dark)').matches;
 
+const getSystemPreference = (): ResolvedTheme => {
+  if (typeof window === 'undefined') return 'light';
+  return prefersDark() ? 'dark' : 'light';
+};
+
 const getInitialTheme = (): Theme => {
   if (typeof window === 'undefined') return 'system';
   const stored = window.localStorage.getItem(STORAGE_KEY) as Theme | null;
@@ -32,44 +38,42 @@ const getInitialTheme = (): Theme => {
   return 'system';
 };
 
-const getInitialResolvedTheme = (): ResolvedTheme => {
-  if (typeof window === 'undefined') return 'light';
-  return prefersDark() ? 'dark' : 'light';
-};
-
 export const ThemeProvider = ({ children }: { children: ReactNode }) => {
   const [theme, setThemeState] = useState<Theme>(() => getInitialTheme());
-  const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>(() => getInitialResolvedTheme());
-  const [systemTheme, setSystemTheme] = useState<ResolvedTheme>(() => getInitialResolvedTheme());
+  const [systemTheme, setSystemTheme] = useState<ResolvedTheme>(() => getSystemPreference());
+
+  const resolvedTheme: ResolvedTheme = theme === 'system' ? systemTheme : theme;
+
+  const applyTheme = useCallback((mode: Theme, preference: ResolvedTheme) => {
+    if (typeof document === 'undefined') return;
+    const shouldUseDark = mode === 'dark' || (mode === 'system' && preference === 'dark');
+    document.documentElement.classList.toggle('dark', shouldUseDark);
+    document.documentElement.style.colorScheme = shouldUseDark ? 'dark' : 'light';
+  }, []);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
     const media = window.matchMedia('(prefers-color-scheme: dark)');
+    const currentPreference: ResolvedTheme = media.matches ? 'dark' : 'light';
+    setSystemTheme(currentPreference);
+    applyTheme(theme, currentPreference);
 
-    const applyTheme = (mode: Theme) => {
-      const preference: ResolvedTheme = media.matches ? 'dark' : 'light';
-      setSystemTheme(preference);
-      const shouldUseDark = mode === 'dark' || (mode === 'system' && preference === 'dark');
-      document.documentElement.classList.toggle('dark', shouldUseDark);
-      document.documentElement.style.colorScheme = shouldUseDark ? 'dark' : 'light';
-      setResolvedTheme(shouldUseDark ? 'dark' : 'light');
-    };
-
-    applyTheme(theme);
-
-    const handleChange = () => {
+    const handleChange = (event: MediaQueryListEvent) => {
+      const nextPreference: ResolvedTheme = event.matches ? 'dark' : 'light';
+      setSystemTheme(nextPreference);
       if (theme === 'system') {
-        applyTheme('system');
-      } else {
-        const preference: ResolvedTheme = media.matches ? 'dark' : 'light';
-        setSystemTheme(preference);
+        applyTheme('system', nextPreference);
       }
     };
 
     media.addEventListener('change', handleChange);
     return () => media.removeEventListener('change', handleChange);
-  }, [theme]);
+  }, [theme, applyTheme]);
+
+  useEffect(() => {
+    applyTheme(theme, systemTheme);
+  }, [theme, systemTheme, applyTheme]);
 
   const setTheme = (value: Theme) => {
     setThemeState(value);
