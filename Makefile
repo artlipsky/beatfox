@@ -1,5 +1,5 @@
 .DEFAULT_GOAL := help
-.PHONY: help install env-setup dev dev-client dev-server build build-client build-server start-server setup-hosts remove-hosts clean validate
+.PHONY: help install env-setup dev dev-client dev-server build build-client build-server start-server setup-hosts remove-hosts clean validate lint
 
 # Colors for output
 CYAN := \033[0;36m
@@ -26,6 +26,9 @@ help:
 	@echo "  make build            - Build both client and server"
 	@echo "  make build-client     - Build only the client"
 	@echo "  make build-server     - Build only the server"
+	@echo ""
+	@echo "$(GREEN)Quality:$(NC)"
+	@echo "  make lint             - Run lint checks across the workspace"
 	@echo ""
 	@echo "$(GREEN)Production:$(NC)"
 	@echo "  make start-server     - Start the production server"
@@ -105,6 +108,11 @@ build-server:
 	@echo "$(CYAN)Building server...$(NC)"
 	@npm run build:server
 	@echo "$(GREEN)✓ Server build complete$(NC)"
+
+lint:
+	@echo "$(CYAN)Running lint checks...$(NC)"
+	@npm run lint
+	@echo "$(GREEN)✓ Lint clean$(NC)"
 
 # Production
 start-server:

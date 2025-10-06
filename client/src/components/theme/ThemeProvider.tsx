@@ -1,26 +1,17 @@
 import {
-  createContext,
   useCallback,
-  useContext,
   useEffect,
   useMemo,
   useState,
   type ReactNode
 } from 'react';
-
-type Theme = 'light' | 'dark' | 'system';
-type ResolvedTheme = 'light' | 'dark';
-
-type ThemeContextValue = {
-  theme: Theme;
-  resolvedTheme: ResolvedTheme;
-  systemTheme: ResolvedTheme;
-  setTheme: (theme: Theme) => void;
-};
+import {
+  ThemeContext,
+  type ResolvedTheme,
+  type Theme
+} from './ThemeContext';
 
 const STORAGE_KEY = 'beatfox-ui-theme';
-
-const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
 
 const prefersDark = () => window.matchMedia('(prefers-color-scheme: dark)').matches;
 
@@ -38,7 +29,7 @@ const getInitialTheme = (): Theme => {
   return 'system';
 };
 
-export const ThemeProvider = ({ children }: { children: ReactNode }) => {
+export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<Theme>(() => getInitialTheme());
   const [systemTheme, setSystemTheme] = useState<ResolvedTheme>(() => getSystemPreference());
 
@@ -93,12 +84,4 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
   );
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
-};
-
-export const useTheme = () => {
-  const context = useContext(ThemeContext);
-  if (!context) {
-    throw new Error('useTheme must be used within a ThemeProvider');
-  }
-  return context;
-};
+}

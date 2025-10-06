@@ -15,7 +15,8 @@
     "build": "npm run build:client && npm run build:server",
     "build:client": "npm run build --workspace=client",
     "build:server": "npm run build --workspace=server",
-    "start:server": "npm run start --workspace=server"
+    "start:server": "npm run start --workspace=server",
+    "lint": "npm run lint --workspace=client"
   },
   "devDependencies": {}
 }
