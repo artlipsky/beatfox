@@ -1,3 +1,0 @@
-/Users/Alex/Documents/GitHub/beatfox/experiments/cmake-build-debug/CMakeFiles/SoundWaveSimulation.dir
-/Users/Alex/Documents/GitHub/beatfox/experiments/cmake-build-debug/CMakeFiles/edit_cache.dir
-/Users/Alex/Documents/GitHub/beatfox/experiments/cmake-build-debug/CMakeFiles/rebuild_cache.dir
