@@ -28,6 +28,13 @@ public:
     float getPhysicalWidth() const { return width * dx; }  // meters
     float getPhysicalHeight() const { return height * dx; } // meters
 
+    // Obstacles
+    void addObstacle(int x, int y, int radius);
+    void removeObstacle(int x, int y, int radius);
+    void clearObstacles();
+    bool isObstacle(int x, int y) const;
+    const uint8_t* getObstacles() const { return obstacles.data(); }
+
 private:
     int width;              // Grid width (pixels)
     int height;             // Grid height (pixels)
@@ -40,6 +47,9 @@ private:
     std::vector<float> pressure;      // Current pressure field (Pa)
     std::vector<float> pressurePrev;  // Previous pressure field (Pa)
     std::vector<float> pressureNext;  // Next pressure field (Pa)
+
+    // Obstacle field (solid objects that block sound)
+    std::vector<uint8_t> obstacles;   // 1 if cell contains an obstacle, 0 otherwise
 
     void updateStep(float dt);  // Single time step
 

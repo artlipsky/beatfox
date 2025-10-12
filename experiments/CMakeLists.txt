@@ -38,14 +38,12 @@ set(IMGUI_SOURCES
 # Source files
 set(SOURCES
     src/main.cpp
-    src/WaveSimulation.cpp
     src/Renderer.cpp
     src/glad.c
     ${IMGUI_SOURCES}
 )
 
 set(HEADERS
-    src/WaveSimulation.h
     src/Renderer.h
     src/glad.h
 )
@@ -61,6 +59,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 )
 
 target_link_libraries(${PROJECT_NAME}
+    SimulationCore
     OpenGL::GL
     glfw
     glm::glm
@@ -78,3 +77,30 @@ endif()
 # Copy shaders to build directory
 file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/shaders
      DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+
+# Enable testing
+enable_testing()
+
+# Google Test
+include(FetchContent)
+FetchContent_Declare(
+    googletest
+    GIT_REPOSITORY https://github.com/google/googletest.git
+    GIT_TAG v1.14.0
+)
+# For Windows: Prevent overriding the parent project's compiler/linker settings
+set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(googletest)
+
+# Create library from core logic (for testing)
+add_library(SimulationCore STATIC
+    src/WaveSimulation.cpp
+    src/WaveSimulation.h
+)
+
+target_include_directories(SimulationCore PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+
+# Tests
+add_subdirectory(tests)

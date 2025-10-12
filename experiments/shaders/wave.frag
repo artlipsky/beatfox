@@ -1,6 +1,7 @@
 #version 330 core
 
 in float waveHeight;
+in float isObstacle;
 in vec2 fragPos;
 
 out vec4 FragColor;
@@ -27,6 +28,15 @@ vec3 heightToColor(float h) {
 }
 
 void main() {
+    // Check if this is an obstacle
+    if (isObstacle > 0.5) {
+        // Render obstacle as solid dark object
+        vec3 obstacleColor = vec3(0.05, 0.05, 0.08);  // Very dark blue-gray
+        FragColor = vec4(obstacleColor, 1.0);
+        return;
+    }
+
+    // Normal wave rendering
     vec3 color = heightToColor(waveHeight);
 
     // Add some ambient lighting based on wave height

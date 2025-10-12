@@ -1,0 +1,42 @@
+# Build directories
+build/
+build-debug/
+build-release/
+cmake-build-*/
+_deps/
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+compile_commands.json
+CTestTestfile.cmake
+install_manifest.txt
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Compiled binaries
+*.exe
+*.out
+*.app
+SoundWaveSimulation
+simulation_tests
+
+# C++ compiled files
+*.o
+*.so
+*.a
+*.dylib
+
+# Test outputs
+test_results.xml
+*.log
+
+# macOS
+.DS_Store
+*.dSYM/
