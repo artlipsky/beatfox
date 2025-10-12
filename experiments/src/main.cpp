@@ -21,6 +21,10 @@ WaveSimulation* simulation = nullptr;
 Renderer* renderer = nullptr;
 float timeScale = 0.15f;  // Time scale: 0.15 = 6.7x slower, 1.0 = real-time
 
+// Obstacle mode
+bool obstacleMode = false;  // Toggle with 'O' key
+int obstacleRadius = 5;     // Obstacle brush size (pixels)
+
 // Convert screen coordinates to simulation grid coordinates
 // Returns false if click is outside the room
 bool screenToGrid(double screenX, double screenY, int& gridX, int& gridY) {
@@ -88,16 +92,30 @@ void mouseButtonCallback(GLFWwindow* window, int button, int action, int mods) {
             lastMouseX = xpos;
             lastMouseY = ypos;
 
-            // Create a single impulse (like a hand clap)
             int gridX, gridY;
             if (screenToGrid(xpos, ypos, gridX, gridY)) {
-                // Click is inside the room - create sound source
-                // Brief pressure impulse (5 Pa - typical hand clap)
-                // For reference: whisper ~0.01 Pa, conversation ~0.1 Pa, clap ~5 Pa
-                simulation->addPressureSource(gridX, gridY, 5.0f);
+                if (obstacleMode) {
+                    // Place obstacle
+                    simulation->addObstacle(gridX, gridY, obstacleRadius);
+                } else {
+                    // Create a single impulse (like a hand clap)
+                    // Brief pressure impulse (5 Pa - typical hand clap)
+                    // For reference: whisper ~0.01 Pa, conversation ~0.1 Pa, clap ~5 Pa
+                    simulation->addPressureSource(gridX, gridY, 5.0f);
+                }
             }
         } else if (action == GLFW_RELEASE) {
             mousePressed = false;
+        }
+    } else if (button == GLFW_MOUSE_BUTTON_RIGHT) {
+        if (action == GLFW_PRESS) {
+            // Right-click to remove obstacles
+            double xpos, ypos;
+            glfwGetCursorPos(window, &xpos, &ypos);
+            int gridX, gridY;
+            if (screenToGrid(xpos, ypos, gridX, gridY)) {
+                simulation->removeObstacle(gridX, gridY, obstacleRadius);
+            }
         }
     }
 }
@@ -155,7 +173,6 @@ void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
                 }
                 break;
             case GLFW_KEY_EQUAL:  // Plus/Equals key (speed up)
-            case GLFW_KEY_RIGHT_BRACKET:
                 timeScale = std::min(2.0f, timeScale * 1.5f);
                 std::cout << "Time scale: " << timeScale << "x";
                 if (timeScale < 1.0f) {
@@ -164,13 +181,42 @@ void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
                 std::cout << std::endl;
                 break;
             case GLFW_KEY_MINUS:  // Minus key (slow down)
-            case GLFW_KEY_LEFT_BRACKET:
                 timeScale = std::max(0.01f, timeScale / 1.5f);
                 std::cout << "Time scale: " << timeScale << "x";
                 if (timeScale < 1.0f) {
                     std::cout << " (" << (1.0f / timeScale) << "x slower)";
                 }
                 std::cout << std::endl;
+                break;
+            case GLFW_KEY_RIGHT_BRACKET:
+                if (mods & GLFW_MOD_SHIFT) {
+                    // Shift+] for obstacle radius
+                    obstacleRadius = std::min(20, obstacleRadius + 1);
+                    std::cout << "Obstacle radius: " << obstacleRadius << " pixels" << std::endl;
+                } else {
+                    // ] for time speed up
+                    timeScale = std::min(2.0f, timeScale * 1.5f);
+                    std::cout << "Time scale: " << timeScale << "x";
+                    if (timeScale < 1.0f) {
+                        std::cout << " (" << (1.0f / timeScale) << "x slower)";
+                    }
+                    std::cout << std::endl;
+                }
+                break;
+            case GLFW_KEY_LEFT_BRACKET:
+                if (mods & GLFW_MOD_SHIFT) {
+                    // Shift+[ for obstacle radius
+                    obstacleRadius = std::max(1, obstacleRadius - 1);
+                    std::cout << "Obstacle radius: " << obstacleRadius << " pixels" << std::endl;
+                } else {
+                    // [ for time slow down
+                    timeScale = std::max(0.01f, timeScale / 1.5f);
+                    std::cout << "Time scale: " << timeScale << "x";
+                    if (timeScale < 1.0f) {
+                        std::cout << " (" << (1.0f / timeScale) << "x slower)";
+                    }
+                    std::cout << std::endl;
+                }
                 break;
             case GLFW_KEY_0:  // Reset to real-time
                 timeScale = 1.0f;
@@ -179,6 +225,16 @@ void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
             case GLFW_KEY_1:  // 20x slower
                 timeScale = 0.05f;
                 std::cout << "Time scale: 0.05x (20x slower)" << std::endl;
+                break;
+            case GLFW_KEY_O:  // Toggle obstacle mode
+                obstacleMode = !obstacleMode;
+                std::cout << "Obstacle mode: " << (obstacleMode ? "ON" : "OFF") << std::endl;
+                break;
+            case GLFW_KEY_C:  // Clear obstacles
+                if (simulation) {
+                    simulation->clearObstacles();
+                    std::cout << "Obstacles cleared" << std::endl;
+                }
                 break;
         }
     }
@@ -300,7 +356,10 @@ int main() {
     std::cout << "20m x 10m closed room with reflective walls" << std::endl;
     std::cout << "Controls:" << std::endl;
     std::cout << "  Left Click: Create sound impulse (clap)" << std::endl;
-    std::cout << "  SPACE: Clear simulation" << std::endl;
+    std::cout << "  O: Toggle obstacle mode" << std::endl;
+    std::cout << "  Right Click: Remove obstacles" << std::endl;
+    std::cout << "  C: Clear obstacles | Shift+[/]: Obstacle size" << std::endl;
+    std::cout << "  SPACE: Clear waves" << std::endl;
     std::cout << "  +/- or [/]: Adjust time scale (slow motion)" << std::endl;
     std::cout << "  1: 20x slower | 0: real-time" << std::endl;
     std::cout << "  UP/DOWN: Adjust sound speed" << std::endl;
@@ -365,8 +424,18 @@ int main() {
             ImGui::Separator();
             ImGui::Text("Controls:");
 
-            ImGui::BulletText("Left Click: Create sound (5 Pa)");
-            ImGui::BulletText("SPACE: Clear");
+            if (obstacleMode) {
+                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.5f, 0.2f, 1.0f));
+                ImGui::BulletText("Left Click: Place obstacle");
+                ImGui::BulletText("Right Click: Remove obstacle");
+                ImGui::PopStyleColor();
+            } else {
+                ImGui::BulletText("Left Click: Create sound (5 Pa)");
+            }
+            ImGui::BulletText("O: Obstacle mode (%s)", obstacleMode ? "ON" : "OFF");
+            ImGui::BulletText("C: Clear obstacles");
+            ImGui::BulletText("Shift+[/]: Obstacle size (%d px)", obstacleRadius);
+            ImGui::BulletText("SPACE: Clear waves");
             ImGui::BulletText("+/- or [/]: Time speed");
             ImGui::BulletText("1: 20x slower | 0: real-time");
             ImGui::BulletText("UP/DOWN: Sound speed");

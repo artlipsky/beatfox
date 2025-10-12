@@ -55,7 +55,7 @@ void Renderer::setupBuffers(int gridWidth, int gridHeight) {
     vertices.clear();
     indices.clear();
 
-    // Create vertex data (position + height placeholder)
+    // Create vertex data (position + height + obstacle)
     for (int y = 0; y < gridHeight; y++) {
         for (int x = 0; x < gridWidth; x++) {
             // Normalized coordinates [-1, 1]
@@ -65,6 +65,7 @@ void Renderer::setupBuffers(int gridWidth, int gridHeight) {
             vertices.push_back(px);
             vertices.push_back(py);
             vertices.push_back(0.0f); // Height placeholder
+            vertices.push_back(0.0f); // Obstacle flag placeholder
         }
     }
 
@@ -102,13 +103,17 @@ void Renderer::setupBuffers(int gridWidth, int gridHeight) {
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(unsigned int), indices.data(), GL_STATIC_DRAW);
 
-    // Position attribute
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    // Position attribute (location = 0)
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
 
-    // Height attribute
-    glVertexAttribPointer(1, 1, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)(2 * sizeof(float)));
+    // Height attribute (location = 1)
+    glVertexAttribPointer(1, 1, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
     glEnableVertexAttribArray(1);
+
+    // Obstacle attribute (location = 2)
+    glVertexAttribPointer(2, 1, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(3 * sizeof(float)));
+    glEnableVertexAttribArray(2);
 
     glBindVertexArray(0);
 }
@@ -122,10 +127,12 @@ void Renderer::render(const WaveSimulation& simulation) {
         setupBuffers(gridWidth, gridHeight);
     }
 
-    // Update height values in vertex buffer
+    // Update height and obstacle values in vertex buffer
     const float* waveData = simulation.getData();
+    const uint8_t* obstacleData = simulation.getObstacles();
     for (int i = 0; i < gridWidth * gridHeight; i++) {
-        vertices[i * 3 + 2] = waveData[i];
+        vertices[i * 4 + 2] = waveData[i];           // Height
+        vertices[i * 4 + 3] = obstacleData[i] ? 1.0f : 0.0f;  // Obstacle flag
     }
 
     glBindBuffer(GL_ARRAY_BUFFER, VBO);

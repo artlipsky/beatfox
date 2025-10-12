@@ -18,6 +18,9 @@ WaveSimulation::WaveSimulation(int width, int height)
     pressurePrev.resize(size, 0.0f);
     pressureNext.resize(size, 0.0f);
 
+    // Initialize obstacle field (no obstacles initially)
+    obstacles.resize(size, false);
+
     /*
      * PHYSICAL UNITS AND SCALE:
      * -------------------------
@@ -107,6 +110,12 @@ void WaveSimulation::updateStep(float dt) {
         for (int x = 1; x < width - 1; x++) {
             const int idx = rowOffset + x;
 
+            // Skip obstacle cells - they act as rigid boundaries (zero pressure)
+            if (obstacles[idx]) {
+                pressureNext[idx] = 0.0f;
+                continue;
+            }
+
             // Load current and neighbors with minimal index calculations
             const float p_c  = pressure[idx];
             const float p_xp = pressure[idx + 1];
@@ -192,4 +201,58 @@ void WaveSimulation::clear() {
     std::fill(pressure.begin(), pressure.end(), 0.0f);
     std::fill(pressurePrev.begin(), pressurePrev.end(), 0.0f);
     std::fill(pressureNext.begin(), pressureNext.end(), 0.0f);
+}
+
+void WaveSimulation::addObstacle(int x, int y, int radius) {
+    /*
+     * Add a circular obstacle (solid object that blocks sound)
+     * Obstacles act as rigid boundaries with zero pressure
+     */
+    for (int dy = -radius; dy <= radius; dy++) {
+        for (int dx = -radius; dx <= radius; dx++) {
+            int px = x + dx;
+            int py = y + dy;
+
+            if (px > 0 && px < width-1 && py > 0 && py < height-1) {
+                float r = std::sqrt(float(dx*dx + dy*dy));
+                if (r <= radius) {
+                    obstacles[index(px, py)] = 1;
+                    // Set pressure to zero at obstacle
+                    pressure[index(px, py)] = 0.0f;
+                    pressurePrev[index(px, py)] = 0.0f;
+                    pressureNext[index(px, py)] = 0.0f;
+                }
+            }
+        }
+    }
+}
+
+void WaveSimulation::removeObstacle(int x, int y, int radius) {
+    /*
+     * Remove obstacles in a circular area
+     */
+    for (int dy = -radius; dy <= radius; dy++) {
+        for (int dx = -radius; dx <= radius; dx++) {
+            int px = x + dx;
+            int py = y + dy;
+
+            if (px > 0 && px < width-1 && py > 0 && py < height-1) {
+                float r = std::sqrt(float(dx*dx + dy*dy));
+                if (r <= radius) {
+                    obstacles[index(px, py)] = 0;
+                }
+            }
+        }
+    }
+}
+
+void WaveSimulation::clearObstacles() {
+    std::fill(obstacles.begin(), obstacles.end(), false);
+}
+
+bool WaveSimulation::isObstacle(int x, int y) const {
+    if (x < 0 || x >= width || y < 0 || y >= height) {
+        return false;
+    }
+    return obstacles[index(x, y)];
 }
