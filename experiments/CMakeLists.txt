@@ -4,6 +4,17 @@ project(SoundWaveSimulation)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Aggressive performance optimization
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE Release)
+endif()
+
+# Compiler-specific optimizations
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
+    set(CMAKE_CXX_FLAGS_RELEASE "-O3 -ffast-math -DNDEBUG")
+    set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g")
+endif()
+
 # Find required packages
 find_package(OpenGL REQUIRED)
 

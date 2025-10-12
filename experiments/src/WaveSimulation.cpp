@@ -9,7 +9,7 @@ WaveSimulation::WaveSimulation(int width, int height)
     , soundSpeed(343.0f)    // Speed of sound in air at 20°C (m/s)
     , damping(0.997f)       // Air absorption (waves fade over time)
     , wallReflection(0.85f) // Wall reflection coefficient (15% energy loss per reflection)
-    , dx(0.03125f)          // Spatial grid spacing: 1 pixel = 3.125 cm = 0.03125 m
+    , dx(0.05f)             // Spatial grid spacing: 1 pixel = 5 cm = 0.05 m
 {
     int size = width * height;
 
@@ -21,9 +21,9 @@ WaveSimulation::WaveSimulation(int width, int height)
     /*
      * PHYSICAL UNITS AND SCALE:
      * -------------------------
-     * Coordinate system: 1 pixel = 3.125 cm = 31.25 mm = 0.03125 m
+     * Coordinate system: 1 pixel = 5 cm = 50 mm = 0.05 m
      *
-     * For 640x320 grid (W x H):
+     * For 400x200 grid (W x H):
      * - Physical room size: 20m x 10m (width x height)
      * - Aspect ratio: 2:1 (rectangular room)
      *
@@ -93,54 +93,54 @@ void WaveSimulation::updateStep(float dt) {
      */
 
     // Compute CFL coefficient: (c*dt/dx)²
-    float c2_dt2_dx2 = (soundSpeed * soundSpeed * dt * dt) / (dx * dx);
+    const float c2_dt2_dx2 = (soundSpeed * soundSpeed * dt * dt) / (dx * dx);
+    const float twoOverDamping = 2.0f * damping;
 
-    // Interior points - solve wave equation
+    // Interior points - solve wave equation with optimized memory access
+    // Process row by row for better cache locality
     for (int y = 1; y < height - 1; y++) {
+        const int rowOffset = y * width;
+        const int rowAbove = (y - 1) * width;
+        const int rowBelow = (y + 1) * width;
+
+        // Cache-friendly inner loop
         for (int x = 1; x < width - 1; x++) {
-            int idx = index(x, y);
+            const int idx = rowOffset + x;
 
-            // 5-point stencil Laplacian: ∇²p ≈ (p[i+1,j] + p[i-1,j] + p[i,j+1] + p[i,j-1] - 4*p[i,j]) / dx²
-            float p_xp = pressure[index(x+1, y)];
-            float p_xm = pressure[index(x-1, y)];
-            float p_yp = pressure[index(x, y+1)];
-            float p_ym = pressure[index(x, y-1)];
-            float p_c  = pressure[idx];
+            // Load current and neighbors with minimal index calculations
+            const float p_c  = pressure[idx];
+            const float p_xp = pressure[idx + 1];
+            const float p_xm = pressure[idx - 1];
+            const float p_yp = pressure[rowBelow + x];
+            const float p_ym = pressure[rowAbove + x];
 
-            float laplacian = (p_xp + p_xm + p_yp + p_ym - 4.0f * p_c);
+            // Compute Laplacian (5-point stencil)
+            const float laplacian = (p_xp + p_xm + p_yp + p_ym - 4.0f * p_c);
 
-            // Leapfrog time integration
-            // p^(n+1) = 2*p^n - p^(n-1) + c²*dt²/dx² * ∇²p^n
-            pressureNext[idx] = 2.0f * p_c - pressurePrev[idx] + c2_dt2_dx2 * laplacian;
-
-            // Apply damping (air absorption: viscosity + thermal losses)
-            pressureNext[idx] *= damping;
+            // Leapfrog integration with combined damping
+            // p^(n+1) = 2*damping*p^n - damping*p^(n-1) + damping*c²*dt²/dx² * ∇²p^n
+            pressureNext[idx] = twoOverDamping * p_c - damping * pressurePrev[idx] +
+                               damping * c2_dt2_dx2 * laplacian;
         }
     }
 
     // Boundary conditions: REFLECTIVE WALLS with energy loss
     // Using Neumann boundary condition: ∂p/∂n = 0 (zero pressure gradient)
     // Plus reflection coefficient to simulate energy absorption by walls
-    // Real walls absorb 10-20% of acoustic energy per reflection
 
-    // Top edge (y = 0): mirror from y = 1 with energy loss
+    // Top and bottom edges (optimized horizontal loops)
+    const int lastRow = (height - 1) * width;
     for (int x = 0; x < width; x++) {
-        pressureNext[index(x, 0)] = pressureNext[index(x, 1)] * wallReflection;
+        pressureNext[x] = pressureNext[width + x] * wallReflection;  // Top
+        pressureNext[lastRow + x] = pressureNext[lastRow - width + x] * wallReflection;  // Bottom
     }
 
-    // Bottom edge (y = height-1): mirror from y = height-2 with energy loss
-    for (int x = 0; x < width; x++) {
-        pressureNext[index(x, height-1)] = pressureNext[index(x, height-2)] * wallReflection;
-    }
-
-    // Left edge (x = 0): mirror from x = 1 with energy loss
+    // Left and right edges (vertical loops)
+    const int lastCol = width - 1;
     for (int y = 0; y < height; y++) {
-        pressureNext[index(0, y)] = pressureNext[index(1, y)] * wallReflection;
-    }
-
-    // Right edge (x = width-1): mirror from x = width-2 with energy loss
-    for (int y = 0; y < height; y++) {
-        pressureNext[index(width-1, y)] = pressureNext[index(width-2, y)] * wallReflection;
+        const int rowOffset = y * width;
+        pressureNext[rowOffset] = pressureNext[rowOffset + 1] * wallReflection;  // Left
+        pressureNext[rowOffset + lastCol] = pressureNext[rowOffset + lastCol - 1] * wallReflection;  // Right
     }
 
     // Time step: rotate buffers
@@ -165,8 +165,8 @@ void WaveSimulation::addPressureSource(int x, int y, float pressureAmplitude) {
     }
 
     // Create a compact, smooth impulse
-    // With 1 pixel = 3.125 cm, radius of 3 pixels ≈ 9.4 cm (realistic hand clap size)
-    const int sourceRadius = 3;
+    // With 1 pixel = 5 cm, radius of 2 pixels = 10 cm (realistic hand clap size)
+    const int sourceRadius = 2;
     const float sigma = 2.5f;  // Gaussian width for smoothness
 
     for (int dy = -sourceRadius; dy <= sourceRadius; dy++) {

@@ -252,10 +252,10 @@ int main() {
 
     // Create simulation and renderer
     // Room: 10m (height) x 20m (width)
-    // Reduced resolution for better performance
-    // Scale: 1 pixel = 3.125 cm = 0.03125 m
-    const int gridHeight = 320;   // 10m / 0.03125m = 320 pixels
-    const int gridWidth = 640;    // 20m / 0.03125m = 640 pixels
+    // Optimized resolution for maximum performance
+    // Scale: 1 pixel = 5 cm = 0.05 m
+    const int gridHeight = 200;   // 10m / 0.05m = 200 pixels
+    const int gridWidth = 400;    // 20m / 0.05m = 400 pixels
 
     simulation = new WaveSimulation(gridWidth, gridHeight);
 
@@ -275,8 +275,8 @@ int main() {
     std::cout << "\nPhysical dimensions:" << std::endl;
     std::cout << "  Window: " << winWidth << " x " << winHeight << " (window coords)" << std::endl;
     std::cout << "  Framebuffer: " << fbWidth << " x " << fbHeight << " (framebuffer coords)" << std::endl;
-    std::cout << "  Grid: " << gridWidth << " x " << gridHeight << " pixels (W x H)" << std::endl;
-    std::cout << "  Scale: 1 pixel = 3.125 cm = 31.25 mm" << std::endl;
+    std::cout << "  Grid: " << gridWidth << " x " << gridHeight << " pixels (W x H) [OPTIMIZED]" << std::endl;
+    std::cout << "  Scale: 1 pixel = 5.0 cm = 50 mm" << std::endl;
     std::cout << "  Room size: " << simulation->getPhysicalWidth() << " m x "
               << simulation->getPhysicalHeight() << " m (W x H)" << std::endl;
     std::cout << "  Speed of sound: " << simulation->getWaveSpeed() << " m/s" << std::endl;
@@ -344,13 +344,13 @@ int main() {
             ImGui::Text("ACOUSTIC SIMULATION");
             ImGui::PopStyleColor();
 
-            ImGui::TextDisabled("20m x 10m room (1px = 3.1cm)");
+            ImGui::TextDisabled("20m x 10m room (1px = 5cm)");
             ImGui::Separator();
             ImGui::Spacing();
 
             ImGui::Text("Physical parameters:");
             ImGui::BulletText("Speed: %.0f m/s", simulation ? simulation->getWaveSpeed() : 343.0f);
-            ImGui::BulletText("Scale: 1 px = 3.1 cm");
+            ImGui::BulletText("Scale: 1 px = 5.0 cm [optimized]");
 
             ImGui::Spacing();
             ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.8f, 0.3f, 1.0f));
