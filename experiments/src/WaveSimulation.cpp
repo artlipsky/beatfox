@@ -1,7 +1,9 @@
 #include "WaveSimulation.h"
+#include "SVGLoader.h"
 #include <algorithm>
 #include <cstring>
 #include <cmath>
+#include <iostream>
 
 WaveSimulation::WaveSimulation(int width, int height)
     : width(width)
@@ -260,4 +262,54 @@ bool WaveSimulation::isObstacle(int x, int y) const {
         return false;
     }
     return obstacles[index(x, y)];
+}
+
+bool WaveSimulation::loadObstaclesFromSVG(const std::string& filename) {
+    /*
+     * Load and rasterize SVG file to obstacle grid
+     *
+     * Uses SVGLoader (infrastructure layer) to parse and rasterize the SVG,
+     * then applies the result to the domain model (obstacle grid).
+     *
+     * This maintains clean architecture: domain doesn't know about SVG,
+     * it just receives an array of obstacles.
+     */
+
+    std::cout << "WaveSimulation: Loading obstacles from " << filename << std::endl;
+
+    // Clear existing obstacles and pressure field
+    clearObstacles();
+    clear();
+
+    // Use SVGLoader to load and rasterize
+    SVGLoader loader;
+    std::vector<uint8_t> loadedObstacles;
+
+    bool success = loader.loadSVG(filename, width, height, loadedObstacles);
+
+    if (!success) {
+        std::cerr << "WaveSimulation: Failed to load SVG: " << loader.getLastError() << std::endl;
+        return false;
+    }
+
+    // Verify size matches
+    if (static_cast<int>(loadedObstacles.size()) != width * height) {
+        std::cerr << "WaveSimulation: Obstacle grid size mismatch" << std::endl;
+        return false;
+    }
+
+    // Apply loaded obstacles to simulation
+    obstacles = std::move(loadedObstacles);
+
+    // Ensure pressure is zero at all obstacle cells
+    for (int i = 0; i < width * height; i++) {
+        if (obstacles[i]) {
+            pressure[i] = 0.0f;
+            pressurePrev[i] = 0.0f;
+            pressureNext[i] = 0.0f;
+        }
+    }
+
+    std::cout << "WaveSimulation: Successfully loaded obstacles from SVG" << std::endl;
+    return true;
 }

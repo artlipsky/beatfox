@@ -2,6 +2,7 @@
 
 #include <vector>
 #include <cmath>
+#include <string>
 
 class WaveSimulation {
 public:
@@ -34,6 +35,18 @@ public:
     void clearObstacles();
     bool isObstacle(int x, int y) const;
     const uint8_t* getObstacles() const { return obstacles.data(); }
+
+    /*
+     * Load obstacles from SVG file
+     *
+     * @param filename Path to SVG file
+     * @return true if successful, false on error
+     *
+     * The SVG is rasterized to match the simulation grid dimensions.
+     * Black/dark shapes become obstacles, white/transparent areas become empty space.
+     * Existing obstacles are cleared before loading.
+     */
+    bool loadObstaclesFromSVG(const std::string& filename);
 
 private:
     int width;              // Grid width (pixels)

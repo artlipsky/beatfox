@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Medium Complexity Studio Layout -->
+<!-- L-shaped control room with isolation booth -->
+<!-- Coordinates: 1 unit = 1 meter -->
+<svg viewBox="0 0 20 10" xmlns="http://www.w3.org/2000/svg">
+  <!-- Outer walls (30cm thick) -->
+  <rect x="0" y="0" width="20" height="10"
+        fill="none" stroke="black" stroke-width="0.3"/>
+
+  <!-- L-shaped control room walls -->
+  <!-- Horizontal wall (leaves 1.5m opening for door) -->
+  <line x1="0" y1="6" x2="8.5" y2="6"
+        stroke="black" stroke-width="0.3"/>
+  <line x1="10" y1="6" x2="20" y2="6"
+        stroke="black" stroke-width="0.3"/>
+
+  <!-- Vertical wall -->
+  <line x1="8" y1="6" x2="8" y2="10"
+        stroke="black" stroke-width="0.3"/>
+
+  <!-- Isolation booth (circular) in upper right -->
+  <circle cx="15" cy="3" r="2.5"
+          fill="none" stroke="black" stroke-width="0.25"/>
+
+  <!-- Acoustic panels (small rectangular absorbers) -->
+  <rect x="2" y="1.5" width="0.2" height="1.5"
+        fill="black" stroke="none"/>
+  <rect x="5" y="1.5" width="0.2" height="1.5"
+        fill="black" stroke="none"/>
+
+  <!-- Labels -->
+  <text x="3" y="8.5" fill="gray" font-size="0.6" opacity="0.3">Control</text>
+  <text x="10" y="8.5" fill="gray" font-size="0.6" opacity="0.3">Live Room</text>
+  <text x="13.5" y="3" fill="gray" font-size="0.5" opacity="0.3">Booth</text>
+</svg>

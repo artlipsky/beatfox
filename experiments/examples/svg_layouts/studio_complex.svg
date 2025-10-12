@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Complex Studio Layout -->
+<!-- Multiple rooms with curved walls and isolation booths -->
+<!-- Coordinates: 1 unit = 1 meter -->
+<svg viewBox="0 0 20 10" xmlns="http://www.w3.org/2000/svg">
+  <!-- Outer walls (30cm thick) -->
+  <rect x="0" y="0" width="20" height="10"
+        fill="none" stroke="black" stroke-width="0.3"/>
+
+  <!-- Control room with angled front wall (splayed corners) -->
+  <path d="M 0,7 L 9,7 L 9.5,6.5 L 9.5,10 L 0,10 Z"
+        fill="none" stroke="black" stroke-width="0.3"/>
+
+  <!-- Vertical wall separating live room and booth area -->
+  <line x1="14" y1="0" x2="14" y2="10"
+        stroke="black" stroke-width="0.3"/>
+
+  <!-- Isolation booth 1 (circular) -->
+  <circle cx="16.5" cy="3" r="2"
+          fill="none" stroke="black" stroke-width="0.25"/>
+
+  <!-- Isolation booth 2 (circular) -->
+  <circle cx="16.5" cy="7.5" r="2"
+          fill="none" stroke="black" stroke-width="0.25"/>
+
+  <!-- Curved diffusor wall (quadratic bezier) -->
+  <path d="M 10,2 Q 11.5,3 10,4"
+        fill="none" stroke="black" stroke-width="0.2"/>
+  <path d="M 10,5 Q 11.5,6 10,7"
+        fill="none" stroke="black" stroke-width="0.2"/>
+
+  <!-- Acoustic treatment panels (bass traps in corners) -->
+  <!-- Top left corner -->
+  <path d="M 1,0.3 L 1,1.5 L 0.3,1.5"
+        fill="black" stroke="none"/>
+
+  <!-- Top right corner (live room) -->
+  <path d="M 13,0.3 L 13,1.5 L 13.7,1.5"
+        fill="black" stroke="none"/>
+
+  <!-- Equipment rack (small rectangle) -->
+  <rect x="1" y="7.5" width="1.5" height="0.8"
+        fill="black" stroke="none"/>
+
+  <!-- Doorways (gaps in walls) - shown as white rectangles -->
+  <rect x="9" y="6.7" width="1" height="0.6"
+        fill="white" stroke="none"/>
+
+  <!-- Labels -->
+  <text x="3" y="8.5" fill="gray" font-size="0.6" opacity="0.3">Control</text>
+  <text x="11" y="4" fill="gray" font-size="0.6" opacity="0.3">Live</text>
+  <text x="15" y="3" fill="gray" font-size="0.5" opacity="0.3">Booth 1</text>
+  <text x="15" y="7.5" fill="gray" font-size="0.5" opacity="0.3">Booth 2</text>
+</svg>
