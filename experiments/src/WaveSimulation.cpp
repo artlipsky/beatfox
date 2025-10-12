@@ -184,6 +184,11 @@ void WaveSimulation::addPressureSource(int x, int y, float pressureAmplitude) {
             int py = y + dy;
 
             if (px > 0 && px < width-1 && py > 0 && py < height-1) {
+                // Don't add pressure to obstacle cells
+                if (obstacles[index(px, py)]) {
+                    continue;
+                }
+
                 float r = std::sqrt(float(dx*dx + dy*dy));
 
                 // Gaussian profile (smooth, no sharp edges)
