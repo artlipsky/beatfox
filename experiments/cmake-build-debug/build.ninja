@@ -51,21 +51,21 @@ build cmake_object_order_depends_target_SoundWaveSimulation: phony || .
 
 build CMakeFiles/SoundWaveSimulation.dir/src/main.cpp.o: CXX_COMPILER__SoundWaveSimulation_unscanned_Debug /Users/Alex/Documents/GitHub/beatfox/experiments/src/main.cpp || cmake_object_order_depends_target_SoundWaveSimulation
   DEP_FILE = CMakeFiles/SoundWaveSimulation.dir/src/main.cpp.o.d
-  FLAGS = -g -std=gnu++17 -arch arm64 -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.0.sdk -fcolor-diagnostics
+  FLAGS = -O0 -g -std=gnu++17 -arch arm64 -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.0.sdk -fcolor-diagnostics
   INCLUDES = -I/Users/Alex/Documents/GitHub/beatfox/experiments/include -I/Users/Alex/Documents/GitHub/beatfox/experiments/external/imgui -I/Users/Alex/Documents/GitHub/beatfox/experiments/external/imgui/backends -I/Users/Alex/Documents/GitHub/beatfox/experiments/src -iframework /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.0.sdk/System/Library/Frameworks -isystem /usr/local/include
   OBJECT_DIR = CMakeFiles/SoundWaveSimulation.dir
   OBJECT_FILE_DIR = CMakeFiles/SoundWaveSimulation.dir/src
 
 build CMakeFiles/SoundWaveSimulation.dir/src/WaveSimulation.cpp.o: CXX_COMPILER__SoundWaveSimulation_unscanned_Debug /Users/Alex/Documents/GitHub/beatfox/experiments/src/WaveSimulation.cpp || cmake_object_order_depends_target_SoundWaveSimulation
   DEP_FILE = CMakeFiles/SoundWaveSimulation.dir/src/WaveSimulation.cpp.o.d
-  FLAGS = -g -std=gnu++17 -arch arm64 -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.0.sdk -fcolor-diagnostics
+  FLAGS = -O0 -g -std=gnu++17 -arch arm64 -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.0.sdk -fcolor-diagnostics
   INCLUDES = -I/Users/Alex/Documents/GitHub/beatfox/experiments/include -I/Users/Alex/Documents/GitHub/beatfox/experiments/external/imgui -I/Users/Alex/Documents/GitHub/beatfox/experiments/external/imgui/backends -I/Users/Alex/Documents/GitHub/beatfox/experiments/src -iframework /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.0.sdk/System/Library/Frameworks -isystem /usr/local/include
   OBJECT_DIR = CMakeFiles/SoundWaveSimulation.dir
   OBJECT_FILE_DIR = CMakeFiles/SoundWaveSimulation.dir/src
 
 build CMakeFiles/SoundWaveSimulation.dir/src/Renderer.cpp.o: CXX_COMPILER__SoundWaveSimulation_unscanned_Debug /Users/Alex/Documents/GitHub/beatfox/experiments/src/Renderer.cpp || cmake_object_order_depends_target_SoundWaveSimulation
   DEP_FILE = CMakeFiles/SoundWaveSimulation.dir/src/Renderer.cpp.o.d
-  FLAGS = -g -std=gnu++17 -arch arm64 -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.0.sdk -fcolor-diagnostics
+  FLAGS = -O0 -g -std=gnu++17 -arch arm64 -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.0.sdk -fcolor-diagnostics
   INCLUDES = -I/Users/Alex/Documents/GitHub/beatfox/experiments/include -I/Users/Alex/Documents/GitHub/beatfox/experiments/external/imgui -I/Users/Alex/Documents/GitHub/beatfox/experiments/external/imgui/backends -I/Users/Alex/Documents/GitHub/beatfox/experiments/src -iframework /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.0.sdk/System/Library/Frameworks -isystem /usr/local/include
   OBJECT_DIR = CMakeFiles/SoundWaveSimulation.dir
   OBJECT_FILE_DIR = CMakeFiles/SoundWaveSimulation.dir/src
@@ -79,42 +79,42 @@ build CMakeFiles/SoundWaveSimulation.dir/src/glad.c.o: C_COMPILER__SoundWaveSimu
 
 build CMakeFiles/SoundWaveSimulation.dir/external/imgui/imgui.cpp.o: CXX_COMPILER__SoundWaveSimulation_unscanned_Debug /Users/Alex/Documents/GitHub/beatfox/experiments/external/imgui/imgui.cpp || cmake_object_order_depends_target_SoundWaveSimulation
   DEP_FILE = CMakeFiles/SoundWaveSimulation.dir/external/imgui/imgui.cpp.o.d
-  FLAGS = -g -std=gnu++17 -arch arm64 -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.0.sdk -fcolor-diagnostics
+  FLAGS = -O0 -g -std=gnu++17 -arch arm64 -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.0.sdk -fcolor-diagnostics
   INCLUDES = -I/Users/Alex/Documents/GitHub/beatfox/experiments/include -I/Users/Alex/Documents/GitHub/beatfox/experiments/external/imgui -I/Users/Alex/Documents/GitHub/beatfox/experiments/external/imgui/backends -I/Users/Alex/Documents/GitHub/beatfox/experiments/src -iframework /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.0.sdk/System/Library/Frameworks -isystem /usr/local/include
   OBJECT_DIR = CMakeFiles/SoundWaveSimulation.dir
   OBJECT_FILE_DIR = CMakeFiles/SoundWaveSimulation.dir/external/imgui
 
 build CMakeFiles/SoundWaveSimulation.dir/external/imgui/imgui_draw.cpp.o: CXX_COMPILER__SoundWaveSimulation_unscanned_Debug /Users/Alex/Documents/GitHub/beatfox/experiments/external/imgui/imgui_draw.cpp || cmake_object_order_depends_target_SoundWaveSimulation
   DEP_FILE = CMakeFiles/SoundWaveSimulation.dir/external/imgui/imgui_draw.cpp.o.d
-  FLAGS = -g -std=gnu++17 -arch arm64 -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.0.sdk -fcolor-diagnostics
+  FLAGS = -O0 -g -std=gnu++17 -arch arm64 -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.0.sdk -fcolor-diagnostics
   INCLUDES = -I/Users/Alex/Documents/GitHub/beatfox/experiments/include -I/Users/Alex/Documents/GitHub/beatfox/experiments/external/imgui -I/Users/Alex/Documents/GitHub/beatfox/experiments/external/imgui/backends -I/Users/Alex/Documents/GitHub/beatfox/experiments/src -iframework /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.0.sdk/System/Library/Frameworks -isystem /usr/local/include
   OBJECT_DIR = CMakeFiles/SoundWaveSimulation.dir
   OBJECT_FILE_DIR = CMakeFiles/SoundWaveSimulation.dir/external/imgui
 
 build CMakeFiles/SoundWaveSimulation.dir/external/imgui/imgui_tables.cpp.o: CXX_COMPILER__SoundWaveSimulation_unscanned_Debug /Users/Alex/Documents/GitHub/beatfox/experiments/external/imgui/imgui_tables.cpp || cmake_object_order_depends_target_SoundWaveSimulation
   DEP_FILE = CMakeFiles/SoundWaveSimulation.dir/external/imgui/imgui_tables.cpp.o.d
-  FLAGS = -g -std=gnu++17 -arch arm64 -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.0.sdk -fcolor-diagnostics
+  FLAGS = -O0 -g -std=gnu++17 -arch arm64 -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.0.sdk -fcolor-diagnostics
   INCLUDES = -I/Users/Alex/Documents/GitHub/beatfox/experiments/include -I/Users/Alex/Documents/GitHub/beatfox/experiments/external/imgui -I/Users/Alex/Documents/GitHub/beatfox/experiments/external/imgui/backends -I/Users/Alex/Documents/GitHub/beatfox/experiments/src -iframework /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.0.sdk/System/Library/Frameworks -isystem /usr/local/include
   OBJECT_DIR = CMakeFiles/SoundWaveSimulation.dir
   OBJECT_FILE_DIR = CMakeFiles/SoundWaveSimulation.dir/external/imgui
 
 build CMakeFiles/SoundWaveSimulation.dir/external/imgui/imgui_widgets.cpp.o: CXX_COMPILER__SoundWaveSimulation_unscanned_Debug /Users/Alex/Documents/GitHub/beatfox/experiments/external/imgui/imgui_widgets.cpp || cmake_object_order_depends_target_SoundWaveSimulation
   DEP_FILE = CMakeFiles/SoundWaveSimulation.dir/external/imgui/imgui_widgets.cpp.o.d
-  FLAGS = -g -std=gnu++17 -arch arm64 -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.0.sdk -fcolor-diagnostics
+  FLAGS = -O0 -g -std=gnu++17 -arch arm64 -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.0.sdk -fcolor-diagnostics
   INCLUDES = -I/Users/Alex/Documents/GitHub/beatfox/experiments/include -I/Users/Alex/Documents/GitHub/beatfox/experiments/external/imgui -I/Users/Alex/Documents/GitHub/beatfox/experiments/external/imgui/backends -I/Users/Alex/Documents/GitHub/beatfox/experiments/src -iframework /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.0.sdk/System/Library/Frameworks -isystem /usr/local/include
   OBJECT_DIR = CMakeFiles/SoundWaveSimulation.dir
   OBJECT_FILE_DIR = CMakeFiles/SoundWaveSimulation.dir/external/imgui
 
 build CMakeFiles/SoundWaveSimulation.dir/external/imgui/backends/imgui_impl_glfw.cpp.o: CXX_COMPILER__SoundWaveSimulation_unscanned_Debug /Users/Alex/Documents/GitHub/beatfox/experiments/external/imgui/backends/imgui_impl_glfw.cpp || cmake_object_order_depends_target_SoundWaveSimulation
   DEP_FILE = CMakeFiles/SoundWaveSimulation.dir/external/imgui/backends/imgui_impl_glfw.cpp.o.d
-  FLAGS = -g -std=gnu++17 -arch arm64 -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.0.sdk -fcolor-diagnostics
+  FLAGS = -O0 -g -std=gnu++17 -arch arm64 -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.0.sdk -fcolor-diagnostics
   INCLUDES = -I/Users/Alex/Documents/GitHub/beatfox/experiments/include -I/Users/Alex/Documents/GitHub/beatfox/experiments/external/imgui -I/Users/Alex/Documents/GitHub/beatfox/experiments/external/imgui/backends -I/Users/Alex/Documents/GitHub/beatfox/experiments/src -iframework /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.0.sdk/System/Library/Frameworks -isystem /usr/local/include
   OBJECT_DIR = CMakeFiles/SoundWaveSimulation.dir
   OBJECT_FILE_DIR = CMakeFiles/SoundWaveSimulation.dir/external/imgui/backends
 
 build CMakeFiles/SoundWaveSimulation.dir/external/imgui/backends/imgui_impl_opengl3.cpp.o: CXX_COMPILER__SoundWaveSimulation_unscanned_Debug /Users/Alex/Documents/GitHub/beatfox/experiments/external/imgui/backends/imgui_impl_opengl3.cpp || cmake_object_order_depends_target_SoundWaveSimulation
   DEP_FILE = CMakeFiles/SoundWaveSimulation.dir/external/imgui/backends/imgui_impl_opengl3.cpp.o.d
-  FLAGS = -g -std=gnu++17 -arch arm64 -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.0.sdk -fcolor-diagnostics
+  FLAGS = -O0 -g -std=gnu++17 -arch arm64 -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.0.sdk -fcolor-diagnostics
   INCLUDES = -I/Users/Alex/Documents/GitHub/beatfox/experiments/include -I/Users/Alex/Documents/GitHub/beatfox/experiments/external/imgui -I/Users/Alex/Documents/GitHub/beatfox/experiments/external/imgui/backends -I/Users/Alex/Documents/GitHub/beatfox/experiments/src -iframework /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.0.sdk/System/Library/Frameworks -isystem /usr/local/include
   OBJECT_DIR = CMakeFiles/SoundWaveSimulation.dir
   OBJECT_FILE_DIR = CMakeFiles/SoundWaveSimulation.dir/external/imgui/backends
@@ -128,7 +128,7 @@ build CMakeFiles/SoundWaveSimulation.dir/external/imgui/backends/imgui_impl_open
 # Link the executable SoundWaveSimulation
 
 build SoundWaveSimulation: CXX_EXECUTABLE_LINKER__SoundWaveSimulation_Debug CMakeFiles/SoundWaveSimulation.dir/src/main.cpp.o CMakeFiles/SoundWaveSimulation.dir/src/WaveSimulation.cpp.o CMakeFiles/SoundWaveSimulation.dir/src/Renderer.cpp.o CMakeFiles/SoundWaveSimulation.dir/src/glad.c.o CMakeFiles/SoundWaveSimulation.dir/external/imgui/imgui.cpp.o CMakeFiles/SoundWaveSimulation.dir/external/imgui/imgui_draw.cpp.o CMakeFiles/SoundWaveSimulation.dir/external/imgui/imgui_tables.cpp.o CMakeFiles/SoundWaveSimulation.dir/external/imgui/imgui_widgets.cpp.o CMakeFiles/SoundWaveSimulation.dir/external/imgui/backends/imgui_impl_glfw.cpp.o CMakeFiles/SoundWaveSimulation.dir/external/imgui/backends/imgui_impl_opengl3.cpp.o | /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.0.sdk/System/Library/Frameworks/OpenGL.framework /usr/local/lib/libglfw.3.4.dylib /usr/local/lib/libglm.dylib
-  FLAGS = -g -arch arm64 -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.0.sdk
+  FLAGS = -O0 -g -arch arm64 -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.0.sdk
   LINK_LIBRARIES = -Wl,-rpath,/usr/local/lib  -framework OpenGL  /usr/local/lib/libglfw.3.4.dylib  /usr/local/lib/libglm.dylib  -framework Cocoa  -framework IOKit  -framework CoreVideo
   OBJECT_DIR = CMakeFiles/SoundWaveSimulation.dir
   POST_BUILD = :
