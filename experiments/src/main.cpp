@@ -1,0 +1,417 @@
+#include <glad/glad.h>
+#include <GLFW/glfw3.h>
+#include <imgui.h>
+#include <imgui_impl_glfw.h>
+#include <imgui_impl_opengl3.h>
+#include <iostream>
+#include <chrono>
+#include "WaveSimulation.h"
+#include "Renderer.h"
+
+// Window state
+int windowWidth = 1280;
+int windowHeight = 720;
+bool mousePressed = false;
+double lastMouseX = 0.0;
+double lastMouseY = 0.0;
+bool showHelp = true;
+
+// Simulation
+WaveSimulation* simulation = nullptr;
+Renderer* renderer = nullptr;
+float timeScale = 0.15f;  // Time scale: 0.15 = 6.7x slower, 1.0 = real-time
+
+// Convert screen coordinates to simulation grid coordinates
+// Returns false if click is outside the room
+bool screenToGrid(double screenX, double screenY, int& gridX, int& gridY) {
+    if (!simulation || !renderer) return false;
+
+    // GLFW gives window coordinates, need to convert to framebuffer coordinates
+    // Get window size and framebuffer size
+    int winWidth, winHeight;
+    glfwGetWindowSize(glfwGetCurrentContext(), &winWidth, &winHeight);
+
+    int fbWidth, fbHeight;
+    glfwGetFramebufferSize(glfwGetCurrentContext(), &fbWidth, &fbHeight);
+
+    // Scale factor from window to framebuffer
+    float scaleX = (float)fbWidth / (float)winWidth;
+    float scaleY = (float)fbHeight / (float)winHeight;
+
+    // Convert to framebuffer coordinates
+    float fbX = screenX * scaleX;
+    float fbY = screenY * scaleY;
+
+    // Get room viewport bounds in framebuffer coordinates
+    float viewLeft, viewRight, viewBottom, viewTop;
+    renderer->getRoomViewport(viewLeft, viewRight, viewBottom, viewTop);
+
+    // Framebuffer Y is bottom-up, but input Y is top-down
+    float fbYFlipped = fbHeight - fbY;
+
+    // Check if click is inside the room viewport
+    if (fbX < viewLeft || fbX > viewRight ||
+        fbYFlipped < viewBottom || fbYFlipped > viewTop) {
+        return false;  // Click outside room
+    }
+
+    // Map from room viewport to simulation grid
+    float normalizedX = (fbX - viewLeft) / (viewRight - viewLeft);
+    float normalizedY = (fbYFlipped - viewBottom) / (viewTop - viewBottom);
+
+    gridX = static_cast<int>(normalizedX * simulation->getWidth());
+    gridY = static_cast<int>(normalizedY * simulation->getHeight());
+
+    // Clamp to valid range
+    gridX = std::max(0, std::min(gridX, simulation->getWidth() - 1));
+    gridY = std::max(0, std::min(gridY, simulation->getHeight() - 1));
+
+    return true;  // Valid click inside room
+}
+
+// Callbacks
+void framebufferSizeCallback(GLFWwindow* window, int width, int height) {
+    windowWidth = width;
+    windowHeight = height;
+    Renderer* renderer = static_cast<Renderer*>(glfwGetWindowUserPointer(window));
+    if (renderer) {
+        renderer->resize(width, height);
+    }
+}
+
+void mouseButtonCallback(GLFWwindow* window, int button, int action, int mods) {
+    if (button == GLFW_MOUSE_BUTTON_LEFT) {
+        if (action == GLFW_PRESS) {
+            mousePressed = true;
+            double xpos, ypos;
+            glfwGetCursorPos(window, &xpos, &ypos);
+            lastMouseX = xpos;
+            lastMouseY = ypos;
+
+            // Create a single impulse (like a hand clap)
+            int gridX, gridY;
+            if (screenToGrid(xpos, ypos, gridX, gridY)) {
+                // Click is inside the room - create sound source
+                // Brief pressure impulse (5 Pa - typical hand clap)
+                // For reference: whisper ~0.01 Pa, conversation ~0.1 Pa, clap ~5 Pa
+                simulation->addPressureSource(gridX, gridY, 5.0f);
+            }
+        } else if (action == GLFW_RELEASE) {
+            mousePressed = false;
+        }
+    }
+}
+
+void cursorPosCallback(GLFWwindow* window, double xpos, double ypos) {
+    // Track mouse position
+    // Note: We don't add sources while dragging - click creates single impulses
+    lastMouseX = xpos;
+    lastMouseY = ypos;
+}
+
+void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods) {
+    if (action == GLFW_PRESS) {
+        switch (key) {
+            case GLFW_KEY_ESCAPE:
+                glfwSetWindowShouldClose(window, true);
+                break;
+            case GLFW_KEY_H:
+                showHelp = !showHelp;
+                std::cout << "Help " << (showHelp ? "shown" : "hidden") << std::endl;
+                break;
+            case GLFW_KEY_SPACE:
+                if (simulation) {
+                    simulation->clear();
+                }
+                break;
+            case GLFW_KEY_UP:
+                if (simulation) {
+                    float speed = simulation->getWaveSpeed();
+                    simulation->setWaveSpeed(speed + 10.0f);  // ±10 m/s increments
+                    std::cout << "Sound speed: " << simulation->getWaveSpeed() << " m/s";
+                    std::cout << " (normal air: 343 m/s)" << std::endl;
+                }
+                break;
+            case GLFW_KEY_DOWN:
+                if (simulation) {
+                    float speed = simulation->getWaveSpeed();
+                    simulation->setWaveSpeed(std::max(50.0f, speed - 10.0f));  // Min 50 m/s
+                    std::cout << "Sound speed: " << simulation->getWaveSpeed() << " m/s";
+                    std::cout << " (normal air: 343 m/s)" << std::endl;
+                }
+                break;
+            case GLFW_KEY_RIGHT:
+                if (simulation) {
+                    float damp = simulation->getDamping();
+                    simulation->setDamping(std::min(0.9995f, damp + 0.0001f));
+                    std::cout << "Air absorption: " << (1.0f - simulation->getDamping()) * 100.0f << "%" << std::endl;
+                }
+                break;
+            case GLFW_KEY_LEFT:
+                if (simulation) {
+                    float damp = simulation->getDamping();
+                    simulation->setDamping(std::max(0.99f, damp - 0.0001f));
+                    std::cout << "Air absorption: " << (1.0f - simulation->getDamping()) * 100.0f << "%" << std::endl;
+                }
+                break;
+            case GLFW_KEY_EQUAL:  // Plus/Equals key (speed up)
+            case GLFW_KEY_RIGHT_BRACKET:
+                timeScale = std::min(2.0f, timeScale * 1.5f);
+                std::cout << "Time scale: " << timeScale << "x";
+                if (timeScale < 1.0f) {
+                    std::cout << " (" << (1.0f / timeScale) << "x slower)";
+                }
+                std::cout << std::endl;
+                break;
+            case GLFW_KEY_MINUS:  // Minus key (slow down)
+            case GLFW_KEY_LEFT_BRACKET:
+                timeScale = std::max(0.01f, timeScale / 1.5f);
+                std::cout << "Time scale: " << timeScale << "x";
+                if (timeScale < 1.0f) {
+                    std::cout << " (" << (1.0f / timeScale) << "x slower)";
+                }
+                std::cout << std::endl;
+                break;
+            case GLFW_KEY_0:  // Reset to real-time
+                timeScale = 1.0f;
+                std::cout << "Time scale: 1.0x (real-time)" << std::endl;
+                break;
+            case GLFW_KEY_1:  // 20x slower
+                timeScale = 0.05f;
+                std::cout << "Time scale: 0.05x (20x slower)" << std::endl;
+                break;
+        }
+    }
+}
+
+int main() {
+    // Initialize GLFW
+    if (!glfwInit()) {
+        std::cerr << "Failed to initialize GLFW" << std::endl;
+        return -1;
+    }
+
+    // Set OpenGL version to 3.3 Core
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE); // Required on Mac
+
+    // Create window
+    GLFWwindow* window = glfwCreateWindow(windowWidth, windowHeight,
+                                          "Acoustic Pressure Simulation", nullptr, nullptr);
+    if (!window) {
+        std::cerr << "Failed to create GLFW window" << std::endl;
+        glfwTerminate();
+        return -1;
+    }
+
+    glfwMakeContextCurrent(window);
+    glfwSetFramebufferSizeCallback(window, framebufferSizeCallback);
+    glfwSetMouseButtonCallback(window, mouseButtonCallback);
+    glfwSetCursorPosCallback(window, cursorPosCallback);
+    glfwSetKeyCallback(window, keyCallback);
+
+    // Initialize GLAD
+    if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
+        std::cerr << "Failed to initialize GLAD" << std::endl;
+        return -1;
+    }
+
+    // Print OpenGL info
+    std::cout << "OpenGL Version: " << glGetString(GL_VERSION) << std::endl;
+    std::cout << "GLSL Version: " << glGetString(GL_SHADING_LANGUAGE_VERSION) << std::endl;
+
+    // Initialize Dear ImGui
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO(); (void)io;
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+
+    // Get window content scale for DPI
+    float xscale, yscale;
+    glfwGetWindowContentScale(window, &xscale, &yscale);
+    float dpiScale = xscale; // Use x scale (typically both are the same)
+
+    std::cout << "DPI Scale: " << dpiScale << "x" << std::endl;
+
+    // Setup Dear ImGui style - NO scaling, keep logical sizes
+    ImGui::StyleColorsDark();
+
+    // Load font with proper DPI scaling for sharpness, but reasonable size
+    float baseFontSize = 14.0f;  // Logical size in points
+    ImFontConfig fontConfig;
+    fontConfig.SizePixels = baseFontSize * dpiScale;  // Physical pixels for sharpness
+    fontConfig.RasterizerMultiply = 1.0f;
+    io.Fonts->AddFontDefault(&fontConfig);
+    io.FontGlobalScale = 1.0f / dpiScale;  // Scale back to logical size
+
+    // Setup Platform/Renderer backends
+    ImGui_ImplGlfw_InitForOpenGL(window, true);
+    ImGui_ImplOpenGL3_Init("#version 330");
+
+    // Create simulation and renderer
+    // Room: 10m (height) x 20m (width)
+    // Reduced resolution for better performance
+    // Scale: 1 pixel = 3.125 cm = 0.03125 m
+    const int gridHeight = 320;   // 10m / 0.03125m = 320 pixels
+    const int gridWidth = 640;    // 20m / 0.03125m = 640 pixels
+
+    simulation = new WaveSimulation(gridWidth, gridHeight);
+
+    // Get actual framebuffer size (accounts for DPI scaling)
+    int winWidth, winHeight;
+    glfwGetWindowSize(window, &winWidth, &winHeight);
+
+    int fbWidth, fbHeight;
+    glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
+    windowWidth = fbWidth;
+    windowHeight = fbHeight;
+
+    Renderer rendererObj(fbWidth, fbHeight);
+    renderer = &rendererObj;  // Store global pointer for mouse handlers
+
+    // Print physical dimensions
+    std::cout << "\nPhysical dimensions:" << std::endl;
+    std::cout << "  Window: " << winWidth << " x " << winHeight << " (window coords)" << std::endl;
+    std::cout << "  Framebuffer: " << fbWidth << " x " << fbHeight << " (framebuffer coords)" << std::endl;
+    std::cout << "  Grid: " << gridWidth << " x " << gridHeight << " pixels (W x H)" << std::endl;
+    std::cout << "  Scale: 1 pixel = 3.125 cm = 31.25 mm" << std::endl;
+    std::cout << "  Room size: " << simulation->getPhysicalWidth() << " m x "
+              << simulation->getPhysicalHeight() << " m (W x H)" << std::endl;
+    std::cout << "  Speed of sound: " << simulation->getWaveSpeed() << " m/s" << std::endl;
+
+    // Print viewport info
+    float vLeft, vRight, vBottom, vTop;
+    renderer->getRoomViewport(vLeft, vRight, vBottom, vTop);
+    std::cout << "  Viewport: (" << vLeft << ", " << vBottom << ") to ("
+              << vRight << ", " << vTop << ")" << std::endl;
+
+    if (!rendererObj.initialize()) {
+        std::cerr << "Failed to initialize renderer" << std::endl;
+        delete simulation;
+        glfwTerminate();
+        return -1;
+    }
+
+    glfwSetWindowUserPointer(window, renderer);
+
+    std::cout << "\n=== Acoustic Pressure Simulation ===" << std::endl;
+    std::cout << "20m x 10m closed room with reflective walls" << std::endl;
+    std::cout << "Controls:" << std::endl;
+    std::cout << "  Left Click: Create sound impulse (clap)" << std::endl;
+    std::cout << "  SPACE: Clear simulation" << std::endl;
+    std::cout << "  +/- or [/]: Adjust time scale (slow motion)" << std::endl;
+    std::cout << "  1: 20x slower | 0: real-time" << std::endl;
+    std::cout << "  UP/DOWN: Adjust sound speed" << std::endl;
+    std::cout << "  LEFT/RIGHT: Adjust air absorption" << std::endl;
+    std::cout << "  H: Toggle help overlay" << std::endl;
+    std::cout << "  ESC: Exit" << std::endl;
+    std::cout << "=========================================\n" << std::endl;
+    std::cout << "Starting at 6.7x slower (press '0' for real-time)\n" << std::endl;
+
+    // Main loop
+    auto lastTime = std::chrono::high_resolution_clock::now();
+    const float fixedDt = 1.0f / 60.0f; // Fixed timestep for physics
+
+    while (!glfwWindowShouldClose(window)) {
+        // Calculate delta time
+        auto currentTime = std::chrono::high_resolution_clock::now();
+        float deltaTime = std::chrono::duration<float>(currentTime - lastTime).count();
+        lastTime = currentTime;
+
+        // Limit delta time to avoid large jumps
+        deltaTime = std::min(deltaTime, 0.1f);
+
+        // Update simulation with scaled time step (for slow motion)
+        simulation->update(fixedDt * timeScale);
+
+        // Start ImGui frame
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
+
+        // Render
+        rendererObj.render(*simulation);
+
+        // Render help overlay if enabled with ImGui
+        if (showHelp) {
+            ImGui::SetNextWindowPos(ImVec2(20, 20), ImGuiCond_FirstUseEver);
+            ImGui::SetNextWindowBgAlpha(0.9f);
+            ImGui::Begin("Controls", &showHelp, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings);
+
+            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.5f, 0.8f, 1.0f, 1.0f));
+            ImGui::Text("ACOUSTIC SIMULATION");
+            ImGui::PopStyleColor();
+
+            ImGui::TextDisabled("20m x 10m room (1px = 3.1cm)");
+            ImGui::Separator();
+            ImGui::Spacing();
+
+            ImGui::Text("Physical parameters:");
+            ImGui::BulletText("Speed: %.0f m/s", simulation ? simulation->getWaveSpeed() : 343.0f);
+            ImGui::BulletText("Scale: 1 px = 3.1 cm");
+
+            ImGui::Spacing();
+            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.8f, 0.3f, 1.0f));
+            if (timeScale < 1.0f) {
+                ImGui::BulletText("Time: %.2fx (%.0fx slower)", timeScale, 1.0f / timeScale);
+            } else {
+                ImGui::BulletText("Time: %.2fx", timeScale);
+            }
+            ImGui::PopStyleColor();
+
+            ImGui::Spacing();
+            ImGui::Separator();
+            ImGui::Text("Controls:");
+
+            ImGui::BulletText("Left Click: Create sound (5 Pa)");
+            ImGui::BulletText("SPACE: Clear");
+            ImGui::BulletText("+/- or [/]: Time speed");
+            ImGui::BulletText("1: 20x slower | 0: real-time");
+            ImGui::BulletText("UP/DOWN: Sound speed");
+            ImGui::BulletText("LEFT/RIGHT: Absorption");
+            ImGui::BulletText("H: Toggle help");
+
+            ImGui::Spacing();
+            ImGui::TextDisabled("Rigid walls reflect sound");
+
+            ImGui::End();
+        } else {
+            // Show a small help button when panel is closed
+            ImGui::SetNextWindowPos(ImVec2(20, 20), ImGuiCond_Always);
+            ImGui::SetNextWindowBgAlpha(0.7f);
+            ImGui::Begin("HelpButton", nullptr,
+                        ImGuiWindowFlags_NoTitleBar |
+                        ImGuiWindowFlags_NoResize |
+                        ImGuiWindowFlags_AlwaysAutoResize |
+                        ImGuiWindowFlags_NoMove |
+                        ImGuiWindowFlags_NoSavedSettings);
+
+            if (ImGui::Button("? Help (H)")) {
+                showHelp = true;
+            }
+
+            ImGui::End();
+        }
+
+        // Render ImGui
+        ImGui::Render();
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
+        // Swap buffers and poll events
+        glfwSwapBuffers(window);
+        glfwPollEvents();
+    }
+
+    // Cleanup ImGui
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
+
+    // Cleanup
+    delete simulation;
+    glfwTerminate();
+
+    return 0;
+}
