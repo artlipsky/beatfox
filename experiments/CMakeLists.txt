@@ -53,8 +53,10 @@ add_executable(${PROJECT_NAME} ${SOURCES} ${HEADERS})
 target_include_directories(${PROJECT_NAME} PRIVATE
     ${OPENGL_INCLUDE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/external
     ${IMGUI_DIR}
     ${IMGUI_DIR}/backends
+    ${nanosvg_SOURCE_DIR}/src
     src
 )
 
@@ -81,8 +83,10 @@ file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/shaders
 # Enable testing
 enable_testing()
 
-# Google Test
+# External dependencies
 include(FetchContent)
+
+# Google Test
 FetchContent_Declare(
     googletest
     GIT_REPOSITORY https://github.com/google/googletest.git
@@ -92,14 +96,25 @@ FetchContent_Declare(
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 
+# nanosvg - Single-header SVG parser and rasterizer
+FetchContent_Declare(
+    nanosvg
+    GIT_REPOSITORY https://github.com/memononen/nanosvg.git
+    GIT_TAG master
+)
+FetchContent_MakeAvailable(nanosvg)
+
 # Create library from core logic (for testing)
 add_library(SimulationCore STATIC
     src/WaveSimulation.cpp
     src/WaveSimulation.h
+    src/SVGLoader.cpp
+    src/SVGLoader.h
 )
 
 target_include_directories(SimulationCore PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${nanosvg_SOURCE_DIR}/src
 )
 
 # Tests

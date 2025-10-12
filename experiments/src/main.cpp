@@ -7,6 +7,7 @@
 #include <chrono>
 #include "WaveSimulation.h"
 #include "Renderer.h"
+#include "portable-file-dialogs.h"
 
 // Window state
 int windowWidth = 1280;
@@ -236,6 +237,33 @@ void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
                     std::cout << "Obstacles cleared" << std::endl;
                 }
                 break;
+            case GLFW_KEY_L:  // Load SVG file
+                if (simulation) {
+                    std::cout << "Opening file dialog..." << std::endl;
+
+                    // Open file dialog for SVG files
+                    auto selection = pfd::open_file("Load SVG Room Layout",
+                                                    "",
+                                                    { "SVG Files", "*.svg",
+                                                      "All Files", "*" },
+                                                    pfd::opt::none).result();
+
+                    if (!selection.empty()) {
+                        std::string filename = selection[0];
+                        std::cout << "Loading: " << filename << std::endl;
+
+                        bool success = simulation->loadObstaclesFromSVG(filename);
+
+                        if (success) {
+                            std::cout << "Successfully loaded SVG layout" << std::endl;
+                        } else {
+                            std::cerr << "Failed to load SVG file" << std::endl;
+                        }
+                    } else {
+                        std::cout << "File dialog cancelled" << std::endl;
+                    }
+                }
+                break;
         }
     }
 }
@@ -359,6 +387,7 @@ int main() {
     std::cout << "  O: Toggle obstacle mode" << std::endl;
     std::cout << "  Right Click: Remove obstacles" << std::endl;
     std::cout << "  C: Clear obstacles | Shift+[/]: Obstacle size" << std::endl;
+    std::cout << "  L: Load SVG room layout" << std::endl;
     std::cout << "  SPACE: Clear waves" << std::endl;
     std::cout << "  +/- or [/]: Adjust time scale (slow motion)" << std::endl;
     std::cout << "  1: 20x slower | 0: real-time" << std::endl;
@@ -434,6 +463,7 @@ int main() {
             }
             ImGui::BulletText("O: Obstacle mode (%s)", obstacleMode ? "ON" : "OFF");
             ImGui::BulletText("C: Clear obstacles");
+            ImGui::BulletText("L: Load SVG layout");
             ImGui::BulletText("Shift+[/]: Obstacle size (%d px)", obstacleRadius);
             ImGui::BulletText("SPACE: Clear waves");
             ImGui::BulletText("+/- or [/]: Time speed");

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Simple Studio Layout -->
+<!-- 20m x 10m room with vertical dividing wall -->
+<!-- Coordinates: 1 unit = 1 meter -->
+<svg viewBox="0 0 20 10" xmlns="http://www.w3.org/2000/svg">
+  <!-- Outer walls (30cm thick) -->
+  <rect x="0" y="0" width="20" height="10"
+        fill="none" stroke="black" stroke-width="0.3"/>
+
+  <!-- Vertical dividing wall (30cm thick, leaves 1m door opening at bottom) -->
+  <line x1="12" y1="0" x2="12" y2="9"
+        stroke="black" stroke-width="0.3"/>
+
+  <!-- Label (optional - will be ignored by rasterizer) -->
+  <text x="5" y="5.5" fill="gray" font-size="0.8" opacity="0.3">Control Room</text>
+  <text x="14" y="5.5" fill="gray" font-size="0.8" opacity="0.3">Live Room</text>
+</svg>
