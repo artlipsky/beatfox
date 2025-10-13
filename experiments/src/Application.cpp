@@ -110,7 +110,8 @@ bool Application::initializeImGui() {
     io.FontGlobalScale = 1.0f / dpiScale;  // Scale back to logical size
 
     // Setup Platform/Renderer backends
-    ImGui_ImplGlfw_InitForOpenGL(window, true);
+    // Pass false to not install callbacks - we install our own in main.cpp
+    ImGui_ImplGlfw_InitForOpenGL(window, false);
     ImGui_ImplOpenGL3_Init("#version 330");
 
     return true;
