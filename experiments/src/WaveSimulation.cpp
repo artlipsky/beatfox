@@ -108,6 +108,43 @@ void WaveSimulation::updateStep(float dt) {
      * Numerical method: FDTD with leapfrog time integration (2nd order accurate)
      */
 
+    // Sample audio sources and inject into pressure field
+    // This must happen BEFORE the wave propagation step
+    for (auto& source : audioSources) {
+        if (source && source->isPlaying()) {
+            float pressureValue = source->getCurrentSample();
+
+            int x = source->getX();
+            int y = source->getY();
+
+            // Check bounds
+            if (x >= 0 && x < width && y >= 0 && y < height) {
+                // Add pressure at source location
+                // Using Gaussian spread to avoid sharp discontinuity
+                const int spreadRadius = 2;
+                const float sigma = 1.5f;
+
+                for (int dy = -spreadRadius; dy <= spreadRadius; dy++) {
+                    for (int dx = -spreadRadius; dx <= spreadRadius; dx++) {
+                        int px = x + dx;
+                        int py = y + dy;
+
+                        if (px > 0 && px < width - 1 && py > 0 && py < height - 1) {
+                            if (obstacles[index(px, py)]) {
+                                continue;  // Don't add pressure to obstacles
+                            }
+
+                            float r = std::sqrt(float(dx * dx + dy * dy));
+                            float profile = std::exp(-r * r / (2.0f * sigma * sigma));
+
+                            pressure[index(px, py)] += pressureValue * profile;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     // Compute CFL coefficient: (c*dt/dx)²
     const float c2_dt2_dx2 = (soundSpeed * soundSpeed * dt * dt) / (dx * dx);
     const float twoOverDamping = 2.0f * damping;
@@ -438,4 +475,49 @@ void WaveSimulation::applyDampingPreset(const DampingPreset& preset) {
     // Log preset application (domain event)
     std::cout << "WaveSimulation: Applied preset '" << preset.getName() << "' - damping=" << damping
               << ", wallReflection=" << wallReflection << std::endl;
+}
+
+// ============================================================================
+// AUDIO SOURCE MANAGEMENT
+// ============================================================================
+
+size_t WaveSimulation::addAudioSource(std::unique_ptr<AudioSource> source) {
+    /*
+     * Add audio source to simulation
+     *
+     * Audio sources continuously emit sound based on their audio sample data.
+     * Each frame, the source's current sample is added to the pressure field.
+     */
+
+    if (!source) {
+        return SIZE_MAX;  // Invalid ID
+    }
+
+    size_t id = audioSources.size();
+    audioSources.push_back(std::move(source));
+
+    std::cout << "WaveSimulation: Added audio source " << id
+              << " at (" << audioSources[id]->getX() << ", " << audioSources[id]->getY() << ")"
+              << std::endl;
+
+    return id;
+}
+
+void WaveSimulation::removeAudioSource(size_t sourceId) {
+    if (sourceId < audioSources.size()) {
+        audioSources.erase(audioSources.begin() + sourceId);
+        std::cout << "WaveSimulation: Removed audio source " << sourceId << std::endl;
+    }
+}
+
+AudioSource* WaveSimulation::getAudioSource(size_t sourceId) {
+    if (sourceId < audioSources.size()) {
+        return audioSources[sourceId].get();
+    }
+    return nullptr;
+}
+
+void WaveSimulation::clearAudioSources() {
+    audioSources.clear();
+    std::cout << "WaveSimulation: Cleared all audio sources" << std::endl;
 }

@@ -3,7 +3,9 @@
 #include <vector>
 #include <cmath>
 #include <string>
+#include <memory>
 #include "DampingPreset.h"
+#include "AudioSource.h"
 
 class WaveSimulation {
 public:
@@ -73,6 +75,44 @@ public:
      */
     float getListenerPressure() const;
 
+    // ========================================================================
+    // AUDIO SOURCES (Continuous sound sources)
+    // ========================================================================
+
+    /*
+     * Add audio source to simulation
+     *
+     * @param source Audio source to add (ownership transferred)
+     * @return ID of added source (index in sources list)
+     */
+    size_t addAudioSource(std::unique_ptr<AudioSource> source);
+
+    /*
+     * Remove audio source by ID
+     *
+     * @param sourceId ID returned by addAudioSource
+     */
+    void removeAudioSource(size_t sourceId);
+
+    /*
+     * Get audio source by ID
+     *
+     * @return Pointer to source, or nullptr if invalid ID
+     */
+    AudioSource* getAudioSource(size_t sourceId);
+
+    /*
+     * Get all audio sources (const)
+     */
+    const std::vector<std::unique_ptr<AudioSource>>& getAudioSources() const {
+        return audioSources;
+    }
+
+    /*
+     * Clear all audio sources
+     */
+    void clearAudioSources();
+
 private:
     int width;              // Grid width (pixels)
     int height;             // Grid height (pixels)
@@ -94,6 +134,9 @@ private:
     int listenerX;              // Listener x position (grid coordinates)
     int listenerY;              // Listener y position (grid coordinates)
     bool listenerEnabled;       // Listener enabled flag
+
+    // Audio sources (continuous sound playback)
+    std::vector<std::unique_ptr<AudioSource>> audioSources;
 
     void updateStep(float dt);  // Single time step
 
