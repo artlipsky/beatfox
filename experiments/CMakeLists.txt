@@ -15,6 +15,19 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
     set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g")
 endif()
 
+# Strict compiler warnings to catch dead code and unused variables
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
+    add_compile_options(
+        -Wall              # Enable all standard warnings
+        -Wextra            # Enable extra warnings
+        -Wpedantic         # Strict ISO C++ compliance
+        -Wunused           # Warn about unused entities
+        -Wunused-function  # Warn about unused functions (catches dead methods)
+        -Wunused-parameter # Warn about unused parameters
+        -Wunused-variable  # Warn about unused variables
+    )
+endif()
+
 # Find required packages
 find_package(OpenGL REQUIRED)
 

@@ -87,7 +87,7 @@ void AudioOutput::stop() {
     std::cout << "AudioOutput: Stopped" << std::endl;
 }
 
-void AudioOutput::submitPressureSample(float pressure, float timeScale) {
+void AudioOutput::submitPressureSample(float pressure, float /*timeScale*/) {
     /*
      * Submit pressure sample to audio buffer with proper resampling
      *
@@ -129,7 +129,7 @@ void AudioOutput::submitPressureSample(float pressure, float timeScale) {
     previousPressure = pressure;
 }
 
-void AudioOutput::audioCallback(ma_device* pDevice, void* pOutput, const void* pInput, unsigned int frameCount) {
+void AudioOutput::audioCallback(ma_device* pDevice, void* pOutput, const void* /*pInput*/, unsigned int frameCount) {
     AudioOutput* audio = (AudioOutput*)pDevice->pUserData;
     float* outputBuffer = (float*)pOutput;
 

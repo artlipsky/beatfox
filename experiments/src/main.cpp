@@ -89,7 +89,7 @@ void framebufferSizeCallback(GLFWwindow* window, int width, int height) {
     }
 }
 
-void mouseButtonCallback(GLFWwindow* window, int button, int action, int mods) {
+void mouseButtonCallback(GLFWwindow* window, int button, int action, int /*mods*/) {
     if (button == GLFW_MOUSE_BUTTON_LEFT) {
         if (action == GLFW_PRESS) {
             mousePressed = true;
@@ -131,14 +131,14 @@ void mouseButtonCallback(GLFWwindow* window, int button, int action, int mods) {
     }
 }
 
-void cursorPosCallback(GLFWwindow* window, double xpos, double ypos) {
+void cursorPosCallback(GLFWwindow* /*window*/, double xpos, double ypos) {
     // Track mouse position
     // Note: We don't add sources while dragging - click creates single impulses
     lastMouseX = xpos;
     lastMouseY = ypos;
 }
 
-void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods) {
+void keyCallback(GLFWwindow* window, int key, int /*scancode*/, int action, int mods) {
     if (action == GLFW_PRESS) {
         switch (key) {
             case GLFW_KEY_ESCAPE:

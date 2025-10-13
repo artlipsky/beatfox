@@ -10,7 +10,6 @@ public:
     ~WaveSimulation();
 
     void update(float dt);
-    void addDisturbance(int x, int y, float amplitude);
     void addPressureSource(int x, int y, float pressure);
     void clear();
 

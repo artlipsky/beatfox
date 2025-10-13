@@ -162,10 +162,6 @@ void WaveSimulation::updateStep(float dt) {
     std::swap(pressure, pressureNext);
 }
 
-void WaveSimulation::addDisturbance(int x, int y, float amplitude) {
-    addPressureSource(x, y, amplitude);
-}
-
 void WaveSimulation::addPressureSource(int x, int y, float pressureAmplitude) {
     /*
      * Add a brief impulse source - like a hand clap or drum hit

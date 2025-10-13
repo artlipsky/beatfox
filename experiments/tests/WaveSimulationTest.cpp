@@ -230,6 +230,7 @@ TEST_F(WaveSimulationTest, DifferentSpeedsAffectPropagation) {
 
     // Near should have more energy than far (waves spreading and dissipating)
     EXPECT_GT(nearEnergy, 0.0f) << "Waves should propagate from source";
+    EXPECT_GE(nearEnergy, farEnergy) << "Energy should decrease with distance";
 }
 
 // ===== BOUNDARY CONDITION TESTS =====
