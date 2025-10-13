@@ -6,6 +6,7 @@
 #include <memory>
 #include "DampingPreset.h"
 #include "AudioSource.h"
+#include "MetalSimulationBackend.h"
 
 class WaveSimulation {
 public:
@@ -124,6 +125,37 @@ public:
      */
     void clearAudioSources();
 
+    // ========================================================================
+    // GPU ACCELERATION (Metal)
+    // ========================================================================
+
+    /*
+     * Enable/disable GPU acceleration
+     *
+     * When enabled, wave equation solving is performed on GPU using Metal.
+     * Falls back to CPU if Metal is not available.
+     *
+     * @param enabled True to enable GPU, false to use CPU
+     */
+    void setGPUEnabled(bool enabled);
+
+    /*
+     * Check if GPU acceleration is enabled and available
+     */
+    bool isGPUEnabled() const { return useGPU && metalBackend.isAvailable(); }
+
+    /*
+     * Check if GPU (Metal) is available on this system
+     */
+    bool isGPUAvailable() const { return metalBackend.isAvailable(); }
+
+    /*
+     * Get GPU performance statistics
+     */
+    MetalSimulationBackend::PerformanceStats getGPUStats() const {
+        return metalBackend.getPerformanceStats();
+    }
+
 private:
     int width;              // Grid width (pixels)
     int height;             // Grid height (pixels)
@@ -149,6 +181,10 @@ private:
 
     // Audio sources (continuous sound playback)
     std::vector<std::unique_ptr<AudioSource>> audioSources;
+
+    // GPU acceleration backend
+    mutable MetalSimulationBackend metalBackend;  // mutable to allow const getters to query stats
+    bool useGPU;  // Flag to enable/disable GPU acceleration
 
     void updateStep(float dt);  // Single time step
 

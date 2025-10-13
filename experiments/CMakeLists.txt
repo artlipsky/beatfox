@@ -97,6 +97,10 @@ endif()
 file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/shaders
      DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
+# Copy Metal shaders to build directory (for GPU acceleration)
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/src/shaders
+     DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/src)
+
 # Enable testing
 enable_testing()
 
@@ -134,12 +138,25 @@ add_library(SimulationCore STATIC
     src/AudioSource.h
     src/AudioFileLoader.cpp
     src/AudioFileLoader.h
+    src/MetalSimulationBackend.mm
+    src/MetalSimulationBackend.h
 )
 
 target_include_directories(SimulationCore PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/src
     ${nanosvg_SOURCE_DIR}/src
 )
+
+# Apple-specific: Enable Objective-C++ for Metal backend and link Metal framework
+if(APPLE)
+    set_source_files_properties(src/MetalSimulationBackend.mm PROPERTIES
+        COMPILE_FLAGS "-x objective-c++ -fobjc-arc"
+    )
+    target_link_libraries(SimulationCore
+        "-framework Metal"
+        "-framework Foundation"
+    )
+endif()
 
 # Tests
 add_subdirectory(tests)
