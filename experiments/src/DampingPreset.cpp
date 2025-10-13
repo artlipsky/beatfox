@@ -51,15 +51,15 @@ DampingPreset DampingPreset::fromType(Type type) {
              * VISUALIZATION: Optimized for demonstrating wave phenomena
              *
              * Physics basis:
-             * - Minimal air absorption: 0.05% energy loss per timestep
+             * - Minimal air absorption: 0.02% energy loss per timestep
              * - This allows waves to travel long distances and interfere clearly
-             * - Wall reflection: 95% (highly reflective walls)
+             * - Wall reflection: 98% (highly reflective walls)
              * - Perfect for educational demonstrations and debugging
              */
             return DampingPreset(
                 Type::VISUALIZATION,
-                0.9995f,     // damping (0.05% loss per step)
-                0.95f,       // wallReflection (5% absorption at walls)
+                0.9998f,     // damping (0.02% loss per step - REDUCED for clearer patterns)
+                0.98f,       // wallReflection (2% absorption at walls - INCREASED reflection)
                 "Visualization",
                 "Minimal damping for clear demonstration of interference patterns"
             );
@@ -70,16 +70,17 @@ DampingPreset DampingPreset::fromType(Type type) {
              *
              * Physics basis:
              * - Anechoic chamber: walls absorb all sound (no reflections)
-             * - Moderate air absorption: 0.1% per timestep
+             * - Higher air absorption: 0.2% per timestep (more than visualization)
              * - Wall reflection: 0% (perfect absorption)
              * - Used for testing isolated wave behavior
+             * - More damping than visualization to show clear difference
              */
             return DampingPreset(
                 Type::ANECHOIC,
-                0.999f,      // damping (0.1% loss per step)
+                0.998f,      // damping (0.2% loss per step - INCREASED for distinction)
                 0.0f,        // wallReflection (100% absorption - no reflections)
                 "Anechoic",
-                "Anechoic chamber: no wall reflections, pure absorption"
+                "Anechoic chamber: no wall reflections, higher air absorption"
             );
 
         default:

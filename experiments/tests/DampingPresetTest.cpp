@@ -47,8 +47,8 @@ TEST_F(DampingPresetTest, VisualizationPresetHasMinimalDamping) {
      */
     auto preset = DampingPreset::fromType(DampingPreset::Type::VISUALIZATION);
 
-    EXPECT_FLOAT_EQ(preset.getDamping(), 0.9995f);
-    EXPECT_FLOAT_EQ(preset.getWallReflection(), 0.95f);
+    EXPECT_FLOAT_EQ(preset.getDamping(), 0.9998f);
+    EXPECT_FLOAT_EQ(preset.getWallReflection(), 0.98f);
     EXPECT_EQ(preset.getName(), "Visualization");
     EXPECT_TRUE(preset.isVisualization());
 }
@@ -61,7 +61,7 @@ TEST_F(DampingPresetTest, AnechoicPresetHasNoReflections) {
     auto preset = DampingPreset::fromType(DampingPreset::Type::ANECHOIC);
 
     EXPECT_FLOAT_EQ(preset.getWallReflection(), 0.0f);
-    EXPECT_FLOAT_EQ(preset.getDamping(), 0.999f);
+    EXPECT_FLOAT_EQ(preset.getDamping(), 0.998f);
     EXPECT_EQ(preset.getName(), "Anechoic");
     EXPECT_TRUE(preset.isAnechoic());
 }
@@ -219,8 +219,8 @@ TEST_F(DampingPresetIntegrationTest, ApplyPresetUpdatesSimulationParameters) {
 
     simulation->applyDampingPreset(visualPreset);
 
-    EXPECT_FLOAT_EQ(simulation->getDamping(), 0.9995f);
-    EXPECT_FLOAT_EQ(simulation->getWallReflection(), 0.95f);
+    EXPECT_FLOAT_EQ(simulation->getDamping(), 0.9998f);
+    EXPECT_FLOAT_EQ(simulation->getWallReflection(), 0.98f);
     EXPECT_EQ(simulation->getCurrentPreset(), visualPreset);
 }
 

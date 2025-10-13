@@ -584,7 +584,9 @@ int main() {
                     simulation->applyDampingPreset(DampingPreset::fromType(DampingPreset::Type::VISUALIZATION));
                 }
                 if (ImGui::IsItemHovered()) {
-                    ImGui::SetTooltip("Minimal damping for clear wave patterns\nAir absorption: 0.05%%, Wall reflection: 95%%");
+                    ImGui::SetTooltip("Minimal damping for clear wave patterns\n"
+                                     "Air: 0.02%% loss, Walls: 98%% reflective\n"
+                                     "Waves persist long, strong reflections");
                 }
 
                 bool isAnechoic = (currentPreset.getType() == DampingPreset::Type::ANECHOIC);
@@ -592,7 +594,9 @@ int main() {
                     simulation->applyDampingPreset(DampingPreset::fromType(DampingPreset::Type::ANECHOIC));
                 }
                 if (ImGui::IsItemHovered()) {
-                    ImGui::SetTooltip("No wall reflections (perfect absorption)\nAir absorption: 0.1%%, Wall reflection: 0%%");
+                    ImGui::SetTooltip("No wall reflections (perfect absorption)\n"
+                                     "Air: 0.2%% loss, Walls: 0%% reflective\n"
+                                     "Waves absorbed at walls, no echoes");
                 }
 
                 // Show current preset info

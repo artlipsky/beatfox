@@ -6,6 +6,7 @@ add_executable(
     AudioOutputTest.cpp
     InterferenceTest.cpp
     DampingPresetTest.cpp
+    WallReflectionTest.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/AudioOutput.cpp
 )
 
