@@ -12,6 +12,9 @@ WaveSimulation::WaveSimulation(int width, int height)
     , damping(0.997f)       // Air absorption (waves fade over time)
     , wallReflection(0.85f) // Wall reflection coefficient (15% energy loss per reflection)
     , dx(0.05f)             // Spatial grid spacing: 1 pixel = 5 cm = 0.05 m
+    , listenerX(width / 2)  // Default listener at center
+    , listenerY(height / 2)
+    , listenerEnabled(false)
 {
     int size = width * height;
 
@@ -312,4 +315,45 @@ bool WaveSimulation::loadObstaclesFromSVG(const std::string& filename) {
 
     std::cout << "WaveSimulation: Successfully loaded obstacles from SVG" << std::endl;
     return true;
+}
+
+void WaveSimulation::setListenerPosition(int x, int y) {
+    // Clamp to valid range
+    listenerX = std::max(0, std::min(x, width - 1));
+    listenerY = std::max(0, std::min(y, height - 1));
+}
+
+void WaveSimulation::getListenerPosition(int& x, int& y) const {
+    x = listenerX;
+    y = listenerY;
+}
+
+void WaveSimulation::setListenerEnabled(bool enabled) {
+    listenerEnabled = enabled;
+    if (enabled) {
+        std::cout << "WaveSimulation: Listener enabled at (" << listenerX << ", " << listenerY << ")" << std::endl;
+    } else {
+        std::cout << "WaveSimulation: Listener disabled" << std::endl;
+    }
+}
+
+float WaveSimulation::getListenerPressure() const {
+    /*
+     * Get pressure at listener position
+     *
+     * Returns the acoustic pressure (Pa) at the listener's location.
+     * This pressure value is then converted to audio by AudioOutput.
+     */
+
+    if (!listenerEnabled) {
+        return 0.0f;
+    }
+
+    // Check bounds
+    if (listenerX < 0 || listenerX >= width || listenerY < 0 || listenerY >= height) {
+        return 0.0f;
+    }
+
+    // Sample pressure at listener position
+    return pressure[index(listenerX, listenerY)];
 }

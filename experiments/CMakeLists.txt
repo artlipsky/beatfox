@@ -39,12 +39,14 @@ set(IMGUI_SOURCES
 set(SOURCES
     src/main.cpp
     src/Renderer.cpp
+    src/AudioOutput.cpp
     src/glad.c
     ${IMGUI_SOURCES}
 )
 
 set(HEADERS
     src/Renderer.h
+    src/AudioOutput.h
     src/glad.h
 )
 
@@ -73,6 +75,8 @@ if(APPLE)
         "-framework Cocoa"
         "-framework IOKit"
         "-framework CoreVideo"
+        "-framework AudioToolbox"
+        "-framework CoreAudio"
     )
 endif()
 
