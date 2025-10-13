@@ -10,15 +10,15 @@
 Renderer::Renderer(int windowWidth, int windowHeight)
     : windowWidth(windowWidth)
     , windowHeight(windowHeight)
+    , roomViewportX(0)
+    , roomViewportY(0)
+    , roomViewportWidth(0)
+    , roomViewportHeight(0)
     , shaderProgram(0)
     , VAO(0)
     , VBO(0)
     , EBO(0)
     , projectionLoc(0)
-    , roomViewportX(0)
-    , roomViewportY(0)
-    , roomViewportWidth(0)
-    , roomViewportHeight(0)
 {
     calculateRoomViewport();
 }

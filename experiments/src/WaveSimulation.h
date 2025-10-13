@@ -10,7 +10,6 @@ public:
     ~WaveSimulation();
 
     void update(float dt);
-    void addDisturbance(int x, int y, float amplitude);
     void addPressureSource(int x, int y, float pressure);
     void clear();
 
@@ -48,6 +47,19 @@ public:
      */
     bool loadObstaclesFromSVG(const std::string& filename);
 
+    // Listener (virtual microphone for audio output)
+    void setListenerPosition(int x, int y);
+    void getListenerPosition(int& x, int& y) const;
+    bool hasListener() const { return listenerEnabled; }
+    void setListenerEnabled(bool enabled);
+
+    /*
+     * Get pressure at listener position
+     *
+     * @return Acoustic pressure in Pascals at listener location
+     */
+    float getListenerPressure() const;
+
 private:
     int width;              // Grid width (pixels)
     int height;             // Grid height (pixels)
@@ -63,6 +75,11 @@ private:
 
     // Obstacle field (solid objects that block sound)
     std::vector<uint8_t> obstacles;   // 1 if cell contains an obstacle, 0 otherwise
+
+    // Listener (virtual microphone)
+    int listenerX;              // Listener x position (grid coordinates)
+    int listenerY;              // Listener y position (grid coordinates)
+    bool listenerEnabled;       // Listener enabled flag
 
     void updateStep(float dt);  // Single time step
 
