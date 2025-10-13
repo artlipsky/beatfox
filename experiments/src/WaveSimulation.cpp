@@ -139,23 +139,62 @@ void WaveSimulation::updateStep(float dt) {
         }
     }
 
-    // Boundary conditions: REFLECTIVE WALLS with energy loss
-    // Using Neumann boundary condition: ∂p/∂n = 0 (zero pressure gradient)
-    // Plus reflection coefficient to simulate energy absorption by walls
+    // Boundary conditions: REFLECTIVE or ABSORBING walls
+    //
+    // Two types:
+    // 1. Reflective (wallReflection > 0.1):
+    //    Neumann condition (∂p/∂n = 0) with attenuation
+    //    Waves reflect back with reduced energy
+    //
+    // 2. Absorbing (wallReflection ≈ 0):
+    //    Extrapolation boundary - wave continues outward
+    //    Simulates anechoic chamber (no reflections)
 
-    // Top and bottom edges (optimized horizontal loops)
+    const bool absorbingWalls = (wallReflection < 0.1f);
     const int lastRow = (height - 1) * width;
-    for (int x = 0; x < width; x++) {
-        pressureNext[x] = pressureNext[width + x] * wallReflection;  // Top
-        pressureNext[lastRow + x] = pressureNext[lastRow - width + x] * wallReflection;  // Bottom
-    }
-
-    // Left and right edges (vertical loops)
     const int lastCol = width - 1;
-    for (int y = 0; y < height; y++) {
-        const int rowOffset = y * width;
-        pressureNext[rowOffset] = pressureNext[rowOffset + 1] * wallReflection;  // Left
-        pressureNext[rowOffset + lastCol] = pressureNext[rowOffset + lastCol - 1] * wallReflection;  // Right
+
+    if (absorbingWalls) {
+        // ABSORBING BOUNDARY: Extrapolate wave outward (no reflection)
+        // For anechoic chambers - waves exit the domain without bouncing back
+
+        for (int x = 1; x < width - 1; x++) {
+            // Top: extrapolate upward
+            pressureNext[x] = 2.0f * pressureNext[width + x] - pressureNext[2 * width + x];
+            // Bottom: extrapolate downward
+            pressureNext[lastRow + x] = 2.0f * pressureNext[lastRow - width + x] - pressureNext[lastRow - 2 * width + x];
+        }
+
+        for (int y = 1; y < height - 1; y++) {
+            const int rowOffset = y * width;
+            // Left: extrapolate leftward
+            pressureNext[rowOffset] = 2.0f * pressureNext[rowOffset + 1] -
+                                      pressureNext[rowOffset + 2];
+            // Right: extrapolate rightward
+            pressureNext[rowOffset + lastCol] = 2.0f * pressureNext[rowOffset + lastCol - 1] -
+                                                pressureNext[rowOffset + lastCol - 2];
+        }
+
+        // Corners: simple zero (corners have minimal effect)
+        pressureNext[0] = 0.0f;
+        pressureNext[lastCol] = 0.0f;
+        pressureNext[lastRow] = 0.0f;
+        pressureNext[lastRow + lastCol] = 0.0f;
+
+    } else {
+        // REFLECTIVE BOUNDARY: Neumann condition with attenuation
+        // Waves reflect back with energy loss based on wallReflection coefficient
+
+        for (int x = 0; x < width; x++) {
+            pressureNext[x] = pressureNext[width + x] * wallReflection;  // Top
+            pressureNext[lastRow + x] = pressureNext[lastRow - width + x] * wallReflection;  // Bottom
+        }
+
+        for (int y = 0; y < height; y++) {
+            const int rowOffset = y * width;
+            pressureNext[rowOffset] = pressureNext[rowOffset + 1] * wallReflection;  // Left
+            pressureNext[rowOffset + lastCol] = pressureNext[rowOffset + lastCol - 1] * wallReflection;  // Right
+        }
     }
 
     // Time step: rotate buffers
