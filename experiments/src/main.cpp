@@ -7,6 +7,7 @@
 #include <chrono>
 #include "WaveSimulation.h"
 #include "Renderer.h"
+#include "AudioOutput.h"
 #include "portable-file-dialogs.h"
 
 // Window state
@@ -20,11 +21,15 @@ bool showHelp = true;
 // Simulation
 WaveSimulation* simulation = nullptr;
 Renderer* renderer = nullptr;
-float timeScale = 0.15f;  // Time scale: 0.15 = 6.7x slower, 1.0 = real-time
+AudioOutput* audioOutput = nullptr;
+float timeScale = 0.01f;  // Time scale: 0.01 = 100x slower (for audible sound), 1.0 = real-time
 
 // Obstacle mode
 bool obstacleMode = false;  // Toggle with 'O' key
 int obstacleRadius = 5;     // Obstacle brush size (pixels)
+
+// Listener mode (virtual microphone)
+bool listenerMode = false;  // Toggle with 'V' key
 
 // Convert screen coordinates to simulation grid coordinates
 // Returns false if click is outside the room
@@ -95,7 +100,12 @@ void mouseButtonCallback(GLFWwindow* window, int button, int action, int mods) {
 
             int gridX, gridY;
             if (screenToGrid(xpos, ypos, gridX, gridY)) {
-                if (obstacleMode) {
+                if (listenerMode) {
+                    // Place listener (virtual microphone)
+                    simulation->setListenerPosition(gridX, gridY);
+                    simulation->setListenerEnabled(true);
+                    std::cout << "Listener placed at (" << gridX << ", " << gridY << ")" << std::endl;
+                } else if (obstacleMode) {
                     // Place obstacle
                     simulation->addObstacle(gridX, gridY, obstacleRadius);
                 } else {
@@ -144,19 +154,37 @@ void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
                 }
                 break;
             case GLFW_KEY_UP:
-                if (simulation) {
-                    float speed = simulation->getWaveSpeed();
-                    simulation->setWaveSpeed(speed + 10.0f);  // ±10 m/s increments
-                    std::cout << "Sound speed: " << simulation->getWaveSpeed() << " m/s";
-                    std::cout << " (normal air: 343 m/s)" << std::endl;
+                if (mods & GLFW_MOD_SHIFT) {
+                    // Shift+UP: Increase volume
+                    if (audioOutput) {
+                        float vol = audioOutput->getVolume();
+                        audioOutput->setVolume(std::min(2.0f, vol + 0.1f));
+                    }
+                } else {
+                    // UP: Increase sound speed
+                    if (simulation) {
+                        float speed = simulation->getWaveSpeed();
+                        simulation->setWaveSpeed(speed + 10.0f);  // ±10 m/s increments
+                        std::cout << "Sound speed: " << simulation->getWaveSpeed() << " m/s";
+                        std::cout << " (normal air: 343 m/s)" << std::endl;
+                    }
                 }
                 break;
             case GLFW_KEY_DOWN:
-                if (simulation) {
-                    float speed = simulation->getWaveSpeed();
-                    simulation->setWaveSpeed(std::max(50.0f, speed - 10.0f));  // Min 50 m/s
-                    std::cout << "Sound speed: " << simulation->getWaveSpeed() << " m/s";
-                    std::cout << " (normal air: 343 m/s)" << std::endl;
+                if (mods & GLFW_MOD_SHIFT) {
+                    // Shift+DOWN: Decrease volume
+                    if (audioOutput) {
+                        float vol = audioOutput->getVolume();
+                        audioOutput->setVolume(std::max(0.0f, vol - 0.1f));
+                    }
+                } else {
+                    // DOWN: Decrease sound speed
+                    if (simulation) {
+                        float speed = simulation->getWaveSpeed();
+                        simulation->setWaveSpeed(std::max(50.0f, speed - 10.0f));  // Min 50 m/s
+                        std::cout << "Sound speed: " << simulation->getWaveSpeed() << " m/s";
+                        std::cout << " (normal air: 343 m/s)" << std::endl;
+                    }
                 }
                 break;
             case GLFW_KEY_RIGHT:
@@ -229,7 +257,22 @@ void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
                 break;
             case GLFW_KEY_O:  // Toggle obstacle mode
                 obstacleMode = !obstacleMode;
+                listenerMode = false;  // Disable listener mode
                 std::cout << "Obstacle mode: " << (obstacleMode ? "ON" : "OFF") << std::endl;
+                break;
+            case GLFW_KEY_V:  // Toggle listener mode
+                listenerMode = !listenerMode;
+                obstacleMode = false;  // Disable obstacle mode
+                std::cout << "Listener mode: " << (listenerMode ? "ON" : "OFF") << std::endl;
+                if (listenerMode) {
+                    std::cout << "Click to place listener (virtual microphone)" << std::endl;
+                }
+                break;
+            case GLFW_KEY_M:  // Toggle mute
+                if (audioOutput) {
+                    bool muted = !audioOutput->isMuted();
+                    audioOutput->setMuted(muted);
+                }
                 break;
             case GLFW_KEY_C:  // Clear obstacles
                 if (simulation) {
@@ -343,6 +386,16 @@ int main() {
 
     simulation = new WaveSimulation(gridWidth, gridHeight);
 
+    // Initialize audio output
+    audioOutput = new AudioOutput();
+    if (!audioOutput->initialize(48000)) {
+        std::cerr << "Warning: Failed to initialize audio output" << std::endl;
+        std::cerr << audioOutput->getLastError() << std::endl;
+    } else {
+        audioOutput->start();
+        std::cout << "Audio output: Initialized and started" << std::endl;
+    }
+
     // Get actual framebuffer size (accounts for DPI scaling)
     int winWidth, winHeight;
     glfwGetWindowSize(window, &winWidth, &winHeight);
@@ -382,8 +435,12 @@ int main() {
 
     std::cout << "\n=== Acoustic Pressure Simulation ===" << std::endl;
     std::cout << "20m x 10m closed room with reflective walls" << std::endl;
-    std::cout << "Controls:" << std::endl;
+    std::cout << "Real-time audio output enabled!" << std::endl;
+    std::cout << "\nControls:" << std::endl;
     std::cout << "  Left Click: Create sound impulse (clap)" << std::endl;
+    std::cout << "  V: Toggle listener mode (virtual microphone)" << std::endl;
+    std::cout << "  M: Mute/Unmute audio" << std::endl;
+    std::cout << "  Shift+UP/DOWN: Volume control" << std::endl;
     std::cout << "  O: Toggle obstacle mode" << std::endl;
     std::cout << "  Right Click: Remove obstacles" << std::endl;
     std::cout << "  C: Clear obstacles | Shift+[/]: Obstacle size" << std::endl;
@@ -396,7 +453,7 @@ int main() {
     std::cout << "  H: Toggle help overlay" << std::endl;
     std::cout << "  ESC: Exit" << std::endl;
     std::cout << "=========================================\n" << std::endl;
-    std::cout << "Starting at 6.7x slower (press '0' for real-time)\n" << std::endl;
+    std::cout << "Starting at 100x slower for audible sound (press '0' for real-time)\n" << std::endl;
 
     // Main loop
     auto lastTime = std::chrono::high_resolution_clock::now();
@@ -414,6 +471,12 @@ int main() {
         // Update simulation with scaled time step (for slow motion)
         simulation->update(fixedDt * timeScale);
 
+        // Sample pressure at listener and submit to audio
+        if (simulation->hasListener() && audioOutput) {
+            float pressure = simulation->getListenerPressure();
+            audioOutput->submitPressureSample(pressure, timeScale);
+        }
+
         // Start ImGui frame
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
@@ -421,6 +484,36 @@ int main() {
 
         // Render
         rendererObj.render(*simulation);
+
+        // Render listener indicator if enabled
+        if (simulation->hasListener()) {
+            int listenerX, listenerY;
+            simulation->getListenerPosition(listenerX, listenerY);
+
+            // Get room viewport bounds
+            float viewLeft, viewRight, viewBottom, viewTop;
+            renderer->getRoomViewport(viewLeft, viewRight, viewBottom, viewTop);
+
+            // Map grid coordinates to screen coordinates
+            float normalizedX = (float)listenerX / (float)simulation->getWidth();
+            float normalizedY = (float)listenerY / (float)simulation->getHeight();
+
+            float screenX = viewLeft + normalizedX * (viewRight - viewLeft);
+            float screenY = viewBottom + normalizedY * (viewTop - viewBottom);
+
+            // Draw listener marker using ImGui draw list (overlay)
+            ImDrawList* drawList = ImGui::GetBackgroundDrawList();
+
+            // Draw a green circle for the listener
+            drawList->AddCircleFilled(ImVec2(screenX, screenY), 8.0f,
+                                     IM_COL32(50, 255, 100, 200));
+            drawList->AddCircle(ImVec2(screenX, screenY), 8.0f,
+                               IM_COL32(255, 255, 255, 255), 0, 2.0f);
+
+            // Draw a small microphone icon (simplified)
+            drawList->AddCircle(ImVec2(screenX, screenY - 3), 3.0f,
+                               IM_COL32(255, 255, 255, 255), 0, 1.5f);
+        }
 
         // Render help overlay if enabled with ImGui
         if (showHelp) {
@@ -453,7 +546,11 @@ int main() {
             ImGui::Separator();
             ImGui::Text("Controls:");
 
-            if (obstacleMode) {
+            if (listenerMode) {
+                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.3f, 1.0f, 0.5f, 1.0f));
+                ImGui::BulletText("Left Click: Place listener (mic)");
+                ImGui::PopStyleColor();
+            } else if (obstacleMode) {
                 ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.5f, 0.2f, 1.0f));
                 ImGui::BulletText("Left Click: Place obstacle");
                 ImGui::BulletText("Right Click: Remove obstacle");
@@ -461,6 +558,7 @@ int main() {
             } else {
                 ImGui::BulletText("Left Click: Create sound (5 Pa)");
             }
+            ImGui::BulletText("V: Listener mode (%s)", listenerMode ? "ON" : "OFF");
             ImGui::BulletText("O: Obstacle mode (%s)", obstacleMode ? "ON" : "OFF");
             ImGui::BulletText("C: Clear obstacles");
             ImGui::BulletText("L: Load SVG layout");
@@ -469,6 +567,8 @@ int main() {
             ImGui::BulletText("+/- or [/]: Time speed");
             ImGui::BulletText("1: 20x slower | 0: real-time");
             ImGui::BulletText("UP/DOWN: Sound speed");
+            ImGui::BulletText("Shift+UP/DOWN: Volume");
+            ImGui::BulletText("M: Mute audio (%s)", (audioOutput && audioOutput->isMuted()) ? "ON" : "OFF");
             ImGui::BulletText("LEFT/RIGHT: Absorption");
             ImGui::BulletText("H: Toggle help");
 
@@ -510,6 +610,10 @@ int main() {
 
     // Cleanup
     delete simulation;
+    if (audioOutput) {
+        audioOutput->stop();
+        delete audioOutput;
+    }
     glfwTerminate();
 
     return 0;
