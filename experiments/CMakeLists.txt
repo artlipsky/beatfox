@@ -51,6 +51,7 @@ set(IMGUI_SOURCES
 # Source files
 set(SOURCES
     src/main.cpp
+    src/Application.cpp
     src/Renderer.cpp
     src/AudioOutput.cpp
     src/glad.c
@@ -58,6 +59,7 @@ set(SOURCES
 )
 
 set(HEADERS
+    src/Application.h
     src/Renderer.h
     src/AudioOutput.h
     src/glad.h

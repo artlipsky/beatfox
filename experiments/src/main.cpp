@@ -1,10 +1,9 @@
-#include <glad/glad.h>
-#include <GLFW/glfw3.h>
+#include <iostream>
+#include <chrono>
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
-#include <iostream>
-#include <chrono>
+#include "Application.h"
 #include "WaveSimulation.h"
 #include "DampingPreset.h"
 #include "Renderer.h"
@@ -51,66 +50,13 @@ std::shared_ptr<AudioSample> loadedSample;  // User-loaded audio file
 InputHandler* inputHandler = nullptr;
 
 int main() {
-    // Initialize GLFW
-    if (!glfwInit()) {
-        std::cerr << "Failed to initialize GLFW" << std::endl;
+    // Initialize application (GLFW, OpenGL, ImGui)
+    Application app(windowWidth, windowHeight, "Acoustic Pressure Simulation");
+    if (!app.initialize()) {
         return -1;
     }
 
-    // Set OpenGL version to 3.3 Core
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE); // Required on Mac
-
-    // Create window
-    GLFWwindow* window = glfwCreateWindow(windowWidth, windowHeight,
-                                          "Acoustic Pressure Simulation", nullptr, nullptr);
-    if (!window) {
-        std::cerr << "Failed to create GLFW window" << std::endl;
-        glfwTerminate();
-        return -1;
-    }
-
-    glfwMakeContextCurrent(window);
-
-    // Initialize GLAD
-    if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
-        std::cerr << "Failed to initialize GLAD" << std::endl;
-        return -1;
-    }
-
-    // Print OpenGL info
-    std::cout << "OpenGL Version: " << glGetString(GL_VERSION) << std::endl;
-    std::cout << "GLSL Version: " << glGetString(GL_SHADING_LANGUAGE_VERSION) << std::endl;
-
-    // Initialize Dear ImGui
-    IMGUI_CHECKVERSION();
-    ImGui::CreateContext();
-    ImGuiIO& io = ImGui::GetIO(); (void)io;
-    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
-
-    // Get window content scale for DPI
-    float xscale, yscale;
-    glfwGetWindowContentScale(window, &xscale, &yscale);
-    float dpiScale = xscale; // Use x scale (typically both are the same)
-
-    std::cout << "DPI Scale: " << dpiScale << "x" << std::endl;
-
-    // Setup Dear ImGui style - NO scaling, keep logical sizes
-    ImGui::StyleColorsDark();
-
-    // Load font with proper DPI scaling for sharpness, but reasonable size
-    float baseFontSize = 14.0f;  // Logical size in points
-    ImFontConfig fontConfig;
-    fontConfig.SizePixels = baseFontSize * dpiScale;  // Physical pixels for sharpness
-    fontConfig.RasterizerMultiply = 1.0f;
-    io.Fonts->AddFontDefault(&fontConfig);
-    io.FontGlobalScale = 1.0f / dpiScale;  // Scale back to logical size
-
-    // Setup Platform/Renderer backends
-    ImGui_ImplGlfw_InitForOpenGL(window, true);
-    ImGui_ImplOpenGL3_Init("#version 330");
+    GLFWwindow* window = app.getWindow();
 
     // Create simulation and renderer
     // Room: 10m (height) x 20m (width)
@@ -290,18 +236,13 @@ int main() {
         glfwPollEvents();
     }
 
-    // Cleanup ImGui
-    ImGui_ImplOpenGL3_Shutdown();
-    ImGui_ImplGlfw_Shutdown();
-    ImGui::DestroyContext();
-
     // Cleanup
     delete simulation;
     if (audioOutput) {
         audioOutput->stop();
         delete audioOutput;
     }
-    glfwTerminate();
 
+    // Application destructor handles ImGui and GLFW cleanup
     return 0;
 }
