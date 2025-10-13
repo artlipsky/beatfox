@@ -6,6 +6,7 @@
 #include "AudioSample.h"
 #include "AudioSource.h"
 #include "portable-file-dialogs.h"
+#include <imgui.h>
 #include <iostream>
 #include <algorithm>
 
@@ -89,6 +90,12 @@ void InputHandler::handleFramebufferResize(GLFWwindow* window, int width, int he
 }
 
 void InputHandler::handleMouseButton(GLFWwindow* window, int button, int action, int /*mods*/) {
+    // Let ImGui handle input if it wants to capture mouse
+    ImGuiIO& io = ImGui::GetIO();
+    if (io.WantCaptureMouse) {
+        return;
+    }
+
     if (button == GLFW_MOUSE_BUTTON_LEFT) {
         if (action == GLFW_PRESS) {
             mousePressed = true;
@@ -191,6 +198,12 @@ void InputHandler::handleCursorPos(GLFWwindow* /*window*/, double xpos, double y
 }
 
 void InputHandler::handleKey(GLFWwindow* window, int key, int /*scancode*/, int action, int mods) {
+    // Let ImGui handle input if it wants to capture keyboard
+    ImGuiIO& io = ImGui::GetIO();
+    if (io.WantCaptureKeyboard) {
+        return;
+    }
+
     if (action == GLFW_PRESS) {
         switch (key) {
             case GLFW_KEY_ESCAPE:
