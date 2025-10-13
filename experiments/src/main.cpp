@@ -490,28 +490,43 @@ int main() {
             int listenerX, listenerY;
             simulation->getListenerPosition(listenerX, listenerY);
 
-            // Get room viewport bounds
+            // Get window and framebuffer sizes for coordinate conversion
+            GLFWwindow* window = glfwGetCurrentContext();
+            int winWidth, winHeight;
+            glfwGetWindowSize(window, &winWidth, &winHeight);
+            int fbWidth, fbHeight;
+            glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
+
+            // Get room viewport bounds (in framebuffer coordinates)
             float viewLeft, viewRight, viewBottom, viewTop;
             renderer->getRoomViewport(viewLeft, viewRight, viewBottom, viewTop);
 
-            // Map grid coordinates to screen coordinates
+            // Map grid coordinates to framebuffer coordinates (bottom-up Y)
             float normalizedX = (float)listenerX / (float)simulation->getWidth();
             float normalizedY = (float)listenerY / (float)simulation->getHeight();
 
-            float screenX = viewLeft + normalizedX * (viewRight - viewLeft);
-            float screenY = viewBottom + normalizedY * (viewTop - viewBottom);
+            float fbX = viewLeft + normalizedX * (viewRight - viewLeft);
+            float fbY = viewBottom + normalizedY * (viewTop - viewBottom);
+
+            // Convert from framebuffer coordinates to window coordinates
+            // ImGui uses window coordinates (top-down Y)
+            float scaleX = (float)winWidth / (float)fbWidth;
+            float scaleY = (float)winHeight / (float)fbHeight;
+
+            float windowX = fbX * scaleX;
+            float windowY = (fbHeight - fbY) * scaleY;  // Flip Y axis
 
             // Draw listener marker using ImGui draw list (overlay)
             ImDrawList* drawList = ImGui::GetBackgroundDrawList();
 
             // Draw a green circle for the listener
-            drawList->AddCircleFilled(ImVec2(screenX, screenY), 8.0f,
+            drawList->AddCircleFilled(ImVec2(windowX, windowY), 8.0f,
                                      IM_COL32(50, 255, 100, 200));
-            drawList->AddCircle(ImVec2(screenX, screenY), 8.0f,
+            drawList->AddCircle(ImVec2(windowX, windowY), 8.0f,
                                IM_COL32(255, 255, 255, 255), 0, 2.0f);
 
             // Draw a small microphone icon (simplified)
-            drawList->AddCircle(ImVec2(screenX, screenY - 3), 3.0f,
+            drawList->AddCircle(ImVec2(windowX, windowY - 3), 3.0f,
                                IM_COL32(255, 255, 255, 255), 0, 1.5f);
         }
 
