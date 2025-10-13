@@ -7,6 +7,7 @@
 #include "AudioSource.h"
 #include "portable-file-dialogs.h"
 #include <imgui.h>
+#include <imgui_impl_glfw.h>
 #include <iostream>
 #include <algorithm>
 
@@ -89,7 +90,10 @@ void InputHandler::handleFramebufferResize(GLFWwindow* window, int width, int he
     }
 }
 
-void InputHandler::handleMouseButton(GLFWwindow* window, int button, int action, int /*mods*/) {
+void InputHandler::handleMouseButton(GLFWwindow* window, int button, int action, int mods) {
+    // Forward event to ImGui first (since we use install_callbacks=false)
+    ImGui_ImplGlfw_MouseButtonCallback(window, button, action, mods);
+
     // Let ImGui handle input if it wants to capture mouse
     ImGuiIO& io = ImGui::GetIO();
     if (io.WantCaptureMouse) {
@@ -183,7 +187,10 @@ void InputHandler::handleMouseButton(GLFWwindow* window, int button, int action,
     }
 }
 
-void InputHandler::handleCursorPos(GLFWwindow* /*window*/, double xpos, double ypos) {
+void InputHandler::handleCursorPos(GLFWwindow* window, double xpos, double ypos) {
+    // Forward event to ImGui first (since we use install_callbacks=false)
+    ImGui_ImplGlfw_CursorPosCallback(window, xpos, ypos);
+
     // Track mouse position
     lastMouseX = xpos;
     lastMouseY = ypos;
@@ -197,7 +204,10 @@ void InputHandler::handleCursorPos(GLFWwindow* /*window*/, double xpos, double y
     }
 }
 
-void InputHandler::handleKey(GLFWwindow* window, int key, int /*scancode*/, int action, int mods) {
+void InputHandler::handleKey(GLFWwindow* window, int key, int scancode, int action, int mods) {
+    // Forward event to ImGui first (since we use install_callbacks=false)
+    ImGui_ImplGlfw_KeyCallback(window, key, scancode, action, mods);
+
     // Let ImGui handle input if it wants to capture keyboard
     ImGuiIO& io = ImGui::GetIO();
     if (io.WantCaptureKeyboard) {
