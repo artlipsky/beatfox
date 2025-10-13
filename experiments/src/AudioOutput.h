@@ -109,6 +109,8 @@ private:
     std::atomic<bool> muted;            // Mute flag
 
     int sampleRate;                     // Audio sample rate (Hz)
+    float previousPressure;             // Previous pressure sample for interpolation
+    float simulationFrameRate;          // Simulation update rate (Hz)
 
     std::string lastError;              // Last error message
 

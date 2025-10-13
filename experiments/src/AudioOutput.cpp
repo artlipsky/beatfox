@@ -16,6 +16,8 @@ AudioOutput::AudioOutput()
     , volume(1.0f)
     , muted(false)
     , sampleRate(48000)
+    , previousPressure(0.0f)
+    , simulationFrameRate(60.0f)  // Assume 60 FPS simulation
 {
     // Allocate ring buffer (1 second worth of samples)
     audioBuffer.resize(sampleRate, 0.0f);
@@ -87,27 +89,44 @@ void AudioOutput::stop() {
 
 void AudioOutput::submitPressureSample(float pressure, float timeScale) {
     /*
-     * Submit pressure sample to audio buffer
+     * Submit pressure sample to audio buffer with proper resampling
      *
-     * The simulation runs at a variable time scale (e.g., 100x slower).
-     * We need to map simulation time to audio time.
+     * The simulation runs at 60 FPS, but audio needs 48000 samples/sec.
+     * This means we need to generate ~800 audio samples per simulation frame.
      *
      * Strategy:
-     * - Each simulation frame provides one pressure sample
-     * - We interpolate/repeat samples to match audio sample rate
-     * - At 60 FPS simulation and 48000 Hz audio, we need 800 audio samples per frame
+     * - Interpolate between previous pressure and current pressure
+     * - Generate samplesPerFrame audio samples
+     * - Linear interpolation for smoothness
+     *
+     * Note: timeScale affects wave propagation speed but not the resampling
+     * ratio (that's determined by simulation FPS vs audio sample rate)
      */
 
     std::lock_guard<std::mutex> lock(bufferMutex);
 
-    // Write sample to ring buffer
-    audioBuffer[bufferWritePos] = pressure;
-    bufferWritePos = (bufferWritePos + 1) % audioBuffer.size();
+    // Calculate how many audio samples we need per simulation frame
+    // At 60 FPS and 48000 Hz: 48000 / 60 = 800 samples per frame
+    int samplesPerFrame = static_cast<int>(sampleRate / simulationFrameRate);
 
-    // Prevent buffer overrun (write catching up to read)
-    if (bufferWritePos == bufferReadPos) {
-        bufferReadPos = (bufferReadPos + 1) % audioBuffer.size();
+    // Interpolate between previous and current pressure
+    for (int i = 0; i < samplesPerFrame; i++) {
+        // Linear interpolation: blend from previous to current
+        float t = static_cast<float>(i) / static_cast<float>(samplesPerFrame);
+        float interpolatedPressure = previousPressure + t * (pressure - previousPressure);
+
+        // Write interpolated sample to ring buffer
+        audioBuffer[bufferWritePos] = interpolatedPressure;
+        bufferWritePos = (bufferWritePos + 1) % audioBuffer.size();
+
+        // Prevent buffer overrun (write catching up to read)
+        if (bufferWritePos == bufferReadPos) {
+            bufferReadPos = (bufferReadPos + 1) % audioBuffer.size();
+        }
     }
+
+    // Store current pressure as previous for next frame
+    previousPressure = pressure;
 }
 
 void AudioOutput::audioCallback(ma_device* pDevice, void* pOutput, const void* pInput, unsigned int frameCount) {
