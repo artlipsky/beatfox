@@ -142,11 +142,16 @@ add_library(SimulationCore STATIC
     src/MetalSimulationBackend.h
     src/CoordinateMapper.cpp
     src/CoordinateMapper.h
+    src/SimulationUI.cpp
+    src/SimulationUI.h
 )
 
 target_include_directories(SimulationCore PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}/external
     ${nanosvg_SOURCE_DIR}/src
+    ${IMGUI_DIR}
+    ${IMGUI_DIR}/backends
 )
 
 # Apple-specific: Enable Objective-C++ for Metal backend and link Metal framework
