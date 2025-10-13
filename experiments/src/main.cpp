@@ -358,6 +358,16 @@ void keyCallback(GLFWwindow* window, int key, int /*scancode*/, int action, int 
                     }
                 }
                 break;
+            case GLFW_KEY_G:  // Toggle GPU acceleration
+                if (simulation) {
+                    bool currentlyUsingGPU = simulation->isGPUEnabled();
+                    simulation->setGPUEnabled(!currentlyUsingGPU);
+                    std::cout << "GPU Acceleration: " << (simulation->isGPUEnabled() ? "ENABLED" : "DISABLED") << std::endl;
+                    if (!simulation->isGPUAvailable()) {
+                        std::cout << "Note: GPU not available on this system" << std::endl;
+                    }
+                }
+                break;
         }
     }
 }
@@ -683,6 +693,21 @@ int main() {
                 int volumePercent = static_cast<int>(volume * 100.0f);
                 ImGui::BulletText("Volume: %.1fx (%d%%)", volume, volumePercent);
             }
+
+            // GPU status indicator
+            if (simulation) {
+                if (simulation->isGPUEnabled()) {
+                    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.3f, 1.0f, 0.5f, 1.0f));  // Green
+                    ImGui::BulletText("GPU: ENABLED (Metal)");
+                    ImGui::PopStyleColor();
+                } else if (simulation->isGPUAvailable()) {
+                    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.5f, 0.2f, 1.0f));  // Orange
+                    ImGui::BulletText("GPU: Available (press G)");
+                    ImGui::PopStyleColor();
+                } else {
+                    ImGui::TextDisabled("GPU: Not available");
+                }
+            }
             ImGui::PopStyleColor();
 
             ImGui::Spacing();
@@ -813,6 +838,7 @@ int main() {
             ImGui::BulletText("UP/DOWN: Sound speed");
             ImGui::BulletText("Shift+UP/DOWN: Volume");
             ImGui::BulletText("M: Mute audio (%s)", (audioOutput && audioOutput->isMuted()) ? "ON" : "OFF");
+            ImGui::BulletText("G: Toggle GPU (%s)", simulation && simulation->isGPUEnabled() ? "ON" : "OFF");
             ImGui::BulletText("LEFT/RIGHT: Absorption");
             ImGui::BulletText("H: Toggle help");
 

@@ -24,7 +24,9 @@ WaveSimulation::WaveSimulation(int width, int height)
       listenerX(width / 2)  // Default listener at center
       ,
       listenerY(height / 2),
-      listenerEnabled(false) {
+      listenerEnabled(false),
+      useGPU(false)  // GPU disabled by default
+{
     int size = width * height;
 
     // Initialize pressure fields to zero (ambient atmospheric pressure)
@@ -34,6 +36,17 @@ WaveSimulation::WaveSimulation(int width, int height)
 
     // Initialize obstacle field (no obstacles initially)
     obstacles.resize(size, false);
+
+    // Initialize Metal GPU backend (will fail gracefully if Metal unavailable)
+    if (metalBackend.initialize(width, height)) {
+        std::cout << "WaveSimulation: Metal GPU backend initialized successfully" << std::endl;
+        std::cout << "WaveSimulation: GPU acceleration ENABLED by default" << std::endl;
+        useGPU = true;  // Enable GPU automatically when available!
+    } else {
+        std::cout << "WaveSimulation: Metal GPU backend unavailable: " << metalBackend.getLastError() << std::endl;
+        std::cout << "WaveSimulation: Using CPU-only mode" << std::endl;
+        useGPU = false;
+    }
 
     /*
      * PHYSICAL UNITS AND SCALE:
@@ -154,6 +167,30 @@ void WaveSimulation::updateStep(float dt) {
     // Compute CFL coefficient: (c*dt/dx)²
     const float c2_dt2_dx2 = (soundSpeed * soundSpeed * dt * dt) / (dx * dx);
     const float twoOverDamping = 2.0f * damping;
+
+    // ========================================================================
+    // GPU ACCELERATION PATH (Metal)
+    // ========================================================================
+    if (useGPU && metalBackend.isAvailable()) {
+        // Execute wave equation on GPU - all grid cells in parallel!
+        metalBackend.executeStep(pressure, pressurePrev, pressureNext, obstacles,
+                                 c2_dt2_dx2, damping, wallReflection);
+
+        // Time step: rotate buffers
+        std::swap(pressurePrev, pressure);
+        std::swap(pressure, pressureNext);
+
+        // Collect listener sample at sub-step rate
+        if (listenerEnabled) {
+            listenerSampleBuffer.push_back(getListenerPressure());
+        }
+
+        return;  // GPU path complete - skip CPU code
+    }
+
+    // ========================================================================
+    // CPU FALLBACK PATH
+    // ========================================================================
 
     // Interior points - solve wave equation with optimized memory access
     // Process row by row for better cache locality
@@ -548,4 +585,26 @@ AudioSource* WaveSimulation::getAudioSource(size_t sourceId) {
 void WaveSimulation::clearAudioSources() {
     audioSources.clear();
     std::cout << "WaveSimulation: Cleared all audio sources" << std::endl;
+}
+
+// ============================================================================
+// GPU ACCELERATION
+// ============================================================================
+
+void WaveSimulation::setGPUEnabled(bool enabled) {
+    if (enabled && !metalBackend.isAvailable()) {
+        std::cout << "WaveSimulation: Cannot enable GPU - Metal not available" << std::endl;
+        useGPU = false;
+        return;
+    }
+
+    useGPU = enabled;
+
+    if (useGPU) {
+        std::cout << "WaveSimulation: GPU acceleration ENABLED (Metal)" << std::endl;
+        std::cout << "WaveSimulation: Wave equation will run on " << width << "x" << height
+                  << " = " << (width * height) << " GPU threads" << std::endl;
+    } else {
+        std::cout << "WaveSimulation: GPU acceleration DISABLED (CPU fallback)" << std::endl;
+    }
 }
