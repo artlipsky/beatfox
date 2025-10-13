@@ -3,6 +3,7 @@
 #include <vector>
 #include <cmath>
 #include <string>
+#include "DampingPreset.h"
 
 class WaveSimulation {
 public:
@@ -23,6 +24,18 @@ public:
     void setDamping(float damp) { damping = damp; }
     float getWaveSpeed() const { return soundSpeed; }
     float getDamping() const { return damping; }
+
+    /*
+     * Damping Presets (Domain-driven design)
+     *
+     * Apply acoustic environment presets following domain logic.
+     * This allows users to switch between different acoustic scenarios
+     * without understanding the underlying physics parameters.
+     */
+    void applyDampingPreset(const DampingPreset& preset);
+    DampingPreset getCurrentPreset() const { return currentPreset; }
+    float getWallReflection() const { return wallReflection; }
+    void setWallReflection(float reflection) { wallReflection = reflection; }
 
     // Physical dimensions
     float getPhysicalWidth() const { return width * dx; }  // meters
@@ -67,6 +80,7 @@ private:
     float damping;          // Air absorption coefficient (dimensionless)
     float wallReflection;   // Wall reflection coefficient (0-1, energy loss at walls)
     float dx;               // Spatial step: 1 pixel = 1 cm = 0.01 m
+    DampingPreset currentPreset;  // Current acoustic environment preset
 
     // Acoustic pressure field (deviation from ambient pressure)
     std::vector<float> pressure;      // Current pressure field (Pa)

@@ -125,6 +125,8 @@ FetchContent_MakeAvailable(nanosvg)
 add_library(SimulationCore STATIC
     src/WaveSimulation.cpp
     src/WaveSimulation.h
+    src/DampingPreset.cpp
+    src/DampingPreset.h
     src/SVGLoader.cpp
     src/SVGLoader.h
 )

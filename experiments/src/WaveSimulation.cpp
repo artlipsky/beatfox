@@ -12,6 +12,7 @@ WaveSimulation::WaveSimulation(int width, int height)
     , damping(0.997f)       // Air absorption (waves fade over time)
     , wallReflection(0.85f) // Wall reflection coefficient (15% energy loss per reflection)
     , dx(0.05f)             // Spatial grid spacing: 1 pixel = 5 cm = 0.05 m
+    , currentPreset(DampingPreset::fromType(DampingPreset::Type::REALISTIC))  // Initialize with realistic preset
     , listenerX(width / 2)  // Default listener at center
     , listenerY(height / 2)
     , listenerEnabled(false)
@@ -352,4 +353,30 @@ float WaveSimulation::getListenerPressure() const {
 
     // Sample pressure at listener position
     return pressure[index(listenerX, listenerY)];
+}
+
+void WaveSimulation::applyDampingPreset(const DampingPreset& preset) {
+    /*
+     * Apply Damping Preset (Domain Logic)
+     *
+     * This method encapsulates the domain rule for applying acoustic
+     * environment presets. It updates the simulation parameters according
+     * to the domain-defined preset values.
+     *
+     * Clean Architecture: This is a domain service method that coordinates
+     * the application of a value object (DampingPreset) to the entity
+     * (WaveSimulation).
+     */
+
+    // Update physics parameters from preset
+    damping = preset.getDamping();
+    wallReflection = preset.getWallReflection();
+
+    // Store current preset for querying
+    currentPreset = preset;
+
+    // Log preset application (domain event)
+    std::cout << "WaveSimulation: Applied preset '" << preset.getName()
+              << "' - damping=" << damping
+              << ", wallReflection=" << wallReflection << std::endl;
 }

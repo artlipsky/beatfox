@@ -6,6 +6,7 @@
 #include <iostream>
 #include <chrono>
 #include "WaveSimulation.h"
+#include "DampingPreset.h"
 #include "Renderer.h"
 #include "AudioOutput.h"
 #include "portable-file-dialogs.h"
@@ -556,6 +557,47 @@ int main() {
                 ImGui::BulletText("Time: %.2fx", timeScale);
             }
             ImGui::PopStyleColor();
+
+            ImGui::Spacing();
+            ImGui::Separator();
+            ImGui::Spacing();
+
+            // Acoustic Environment Presets (Domain-driven)
+            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.7f, 0.3f, 1.0f));
+            ImGui::Text("Acoustic Environment:");
+            ImGui::PopStyleColor();
+
+            auto currentPreset = simulation ? simulation->getCurrentPreset() : DampingPreset::fromType(DampingPreset::Type::REALISTIC);
+
+            if (simulation) {
+                // Radio button for each preset type
+                bool isRealistic = (currentPreset.getType() == DampingPreset::Type::REALISTIC);
+                if (ImGui::RadioButton("Realistic", isRealistic)) {
+                    simulation->applyDampingPreset(DampingPreset::fromType(DampingPreset::Type::REALISTIC));
+                }
+                if (ImGui::IsItemHovered()) {
+                    ImGui::SetTooltip("Real-world room acoustics\nAir absorption: 0.3%%, Wall reflection: 85%%");
+                }
+
+                bool isVisualization = (currentPreset.getType() == DampingPreset::Type::VISUALIZATION);
+                if (ImGui::RadioButton("Visualization", isVisualization)) {
+                    simulation->applyDampingPreset(DampingPreset::fromType(DampingPreset::Type::VISUALIZATION));
+                }
+                if (ImGui::IsItemHovered()) {
+                    ImGui::SetTooltip("Minimal damping for clear wave patterns\nAir absorption: 0.05%%, Wall reflection: 95%%");
+                }
+
+                bool isAnechoic = (currentPreset.getType() == DampingPreset::Type::ANECHOIC);
+                if (ImGui::RadioButton("Anechoic Chamber", isAnechoic)) {
+                    simulation->applyDampingPreset(DampingPreset::fromType(DampingPreset::Type::ANECHOIC));
+                }
+                if (ImGui::IsItemHovered()) {
+                    ImGui::SetTooltip("No wall reflections (perfect absorption)\nAir absorption: 0.1%%, Wall reflection: 0%%");
+                }
+
+                // Show current preset info
+                ImGui::TextDisabled("%s", currentPreset.getDescription().c_str());
+            }
 
             ImGui::Spacing();
             ImGui::Separator();
