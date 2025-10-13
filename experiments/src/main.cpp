@@ -9,6 +9,9 @@
 #include "DampingPreset.h"
 #include "Renderer.h"
 #include "AudioOutput.h"
+#include "AudioSource.h"
+#include "AudioSample.h"
+#include "AudioFileLoader.h"
 #include "portable-file-dialogs.h"
 
 // Window state
@@ -31,6 +34,12 @@ int obstacleRadius = 5;     // Obstacle brush size (pixels)
 
 // Listener mode (virtual microphone)
 bool listenerMode = false;  // Toggle with 'V' key
+
+// Audio source mode
+bool sourceMode = false;    // Toggle with 'S' key
+int selectedPreset = 0;     // 0=Kick, 1=Snare, 2=Tone, 3=Impulse, 4=File
+float sourceVolumeDb = 0.0f;  // Volume in dB
+bool sourceLoop = true;     // Loop audio
 
 // Convert screen coordinates to simulation grid coordinates
 // Returns false if click is outside the room
@@ -109,6 +118,27 @@ void mouseButtonCallback(GLFWwindow* window, int button, int action, int /*mods*
                 } else if (obstacleMode) {
                     // Place obstacle
                     simulation->addObstacle(gridX, gridY, obstacleRadius);
+                } else if (sourceMode) {
+                    // Place audio source
+                    std::shared_ptr<AudioSample> sample;
+
+                    // Get sample based on selection
+                    if (selectedPreset == 0) {
+                        sample = std::make_shared<AudioSample>(AudioSamplePresets::generateKick());
+                    } else if (selectedPreset == 1) {
+                        sample = std::make_shared<AudioSample>(AudioSamplePresets::generateSnare());
+                    } else if (selectedPreset == 2) {
+                        sample = std::make_shared<AudioSample>(AudioSamplePresets::generateTone(440.0f, 1.0f));
+                    } else if (selectedPreset == 3) {
+                        sample = std::make_shared<AudioSample>(AudioSamplePresets::generateImpulse());
+                    }
+
+                    if (sample) {
+                        auto source = std::make_unique<AudioSource>(sample, gridX, gridY, sourceVolumeDb, sourceLoop);
+                        source->play();
+                        simulation->addAudioSource(std::move(source));
+                        std::cout << "Audio source placed at (" << gridX << ", " << gridY << "), volume: " << sourceVolumeDb << " dB" << std::endl;
+                    }
                 } else {
                     // Create a single impulse (like a hand clap)
                     // Brief pressure impulse (5 Pa - typical hand clap)
@@ -259,14 +289,27 @@ void keyCallback(GLFWwindow* window, int key, int /*scancode*/, int action, int 
             case GLFW_KEY_O:  // Toggle obstacle mode
                 obstacleMode = !obstacleMode;
                 listenerMode = false;  // Disable listener mode
+                sourceMode = false;    // Disable source mode
                 std::cout << "Obstacle mode: " << (obstacleMode ? "ON" : "OFF") << std::endl;
                 break;
             case GLFW_KEY_V:  // Toggle listener mode
                 listenerMode = !listenerMode;
                 obstacleMode = false;  // Disable obstacle mode
+                sourceMode = false;    // Disable source mode
                 std::cout << "Listener mode: " << (listenerMode ? "ON" : "OFF") << std::endl;
                 if (listenerMode) {
                     std::cout << "Click to place listener (virtual microphone)" << std::endl;
+                }
+                break;
+            case GLFW_KEY_S:  // Toggle source mode
+                sourceMode = !sourceMode;
+                obstacleMode = false;  // Disable obstacle mode
+                listenerMode = false;  // Disable listener mode
+                std::cout << "Audio Source mode: " << (sourceMode ? "ON" : "OFF") << std::endl;
+                if (sourceMode) {
+                    std::cout << "Click to place audio source (current: ";
+                    const char* presets[] = {"Kick", "Snare", "Tone", "Impulse", "File"};
+                    std::cout << presets[selectedPreset] << ")" << std::endl;
                 }
                 break;
             case GLFW_KEY_M:  // Toggle mute
@@ -531,6 +574,72 @@ int main() {
                                IM_COL32(255, 255, 255, 255), 0, 1.5f);
         }
 
+        // Render audio source indicators
+        auto& audioSources = simulation->getAudioSources();
+        if (!audioSources.empty()) {
+            // Get window and framebuffer sizes for coordinate conversion
+            GLFWwindow* window = glfwGetCurrentContext();
+            int winWidth, winHeight;
+            glfwGetWindowSize(window, &winWidth, &winHeight);
+            int fbWidth, fbHeight;
+            glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
+
+            // Get room viewport bounds (in framebuffer coordinates)
+            float viewLeft, viewRight, viewBottom, viewTop;
+            renderer->getRoomViewport(viewLeft, viewRight, viewBottom, viewTop);
+
+            ImDrawList* drawList = ImGui::GetBackgroundDrawList();
+
+            for (size_t i = 0; i < audioSources.size(); i++) {
+                const auto& source = audioSources[i];
+                if (!source) continue;
+
+                int sourceX = source->getX();
+                int sourceY = source->getY();
+
+                // Map grid coordinates to framebuffer coordinates (bottom-up Y)
+                float normalizedX = (float)sourceX / (float)simulation->getWidth();
+                float normalizedY = (float)sourceY / (float)simulation->getHeight();
+
+                float fbX = viewLeft + normalizedX * (viewRight - viewLeft);
+                float fbY = viewBottom + normalizedY * (viewTop - viewBottom);
+
+                // Convert from framebuffer coordinates to window coordinates
+                // ImGui uses window coordinates (top-down Y)
+                float scaleX = (float)winWidth / (float)fbWidth;
+                float scaleY = (float)winHeight / (float)fbHeight;
+
+                float windowX = fbX * scaleX;
+                float windowY = (fbHeight - fbY) * scaleY;  // Flip Y axis
+
+                // Choose color based on playback state
+                ImU32 fillColor = source->isPlaying()
+                    ? IM_COL32(255, 150, 50, 200)   // Orange for playing
+                    : IM_COL32(150, 150, 150, 150); // Gray for paused/stopped
+
+                ImU32 outlineColor = source->isPlaying()
+                    ? IM_COL32(255, 200, 100, 255)  // Bright orange outline
+                    : IM_COL32(200, 200, 200, 255); // Gray outline
+
+                // Draw audio source marker (circle with speaker icon)
+                drawList->AddCircleFilled(ImVec2(windowX, windowY), 8.0f, fillColor);
+                drawList->AddCircle(ImVec2(windowX, windowY), 8.0f, outlineColor, 0, 2.0f);
+
+                // Draw speaker icon (simplified: three curved lines)
+                if (source->isPlaying()) {
+                    // Small speaker box
+                    drawList->AddRectFilled(ImVec2(windowX - 3, windowY - 2),
+                                          ImVec2(windowX - 1, windowY + 2),
+                                          IM_COL32(255, 255, 255, 255));
+                    // Sound waves
+                    drawList->AddCircle(ImVec2(windowX, windowY), 3.0f,
+                                       IM_COL32(255, 255, 255, 200), 12, 1.0f);
+                    drawList->AddCircle(ImVec2(windowX, windowY), 5.0f,
+                                       IM_COL32(255, 255, 255, 150), 12, 1.0f);
+                }
+            }
+        }
+
         // Render help overlay if enabled with ImGui
         if (showHelp) {
             ImGui::SetNextWindowPos(ImVec2(20, 20), ImGuiCond_FirstUseEver);
@@ -605,9 +714,61 @@ int main() {
 
             ImGui::Spacing();
             ImGui::Separator();
+            ImGui::Spacing();
+
+            // Audio Sources Section
+            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.7f, 0.8f, 1.0f));
+            ImGui::Text("Audio Sources:");
+            ImGui::PopStyleColor();
+
+            const char* presetNames[] = {"Kick Drum", "Snare Drum", "Tone (440Hz)", "Impulse"};
+            ImGui::Combo("Sample", &selectedPreset, presetNames, 4);
+
+            ImGui::SliderFloat("Volume (dB)", &sourceVolumeDb, -40.0f, 20.0f, "%.1f dB");
+            ImGui::Checkbox("Loop", &sourceLoop);
+
+            if (ImGui::Button("Load Audio File")) {
+                auto selection = pfd::open_file("Load Audio Sample",
+                                                "",
+                                                { "Audio Files", "*.mp3 *.wav *.flac",
+                                                  "All Files", "*" },
+                                                pfd::opt::none).result();
+
+                if (!selection.empty()) {
+                    std::string filename = selection[0];
+                    std::cout << "Loading audio file: " << filename << std::endl;
+
+                    auto sample = AudioFileLoader::loadFile(filename, 48000);
+
+                    if (sample) {
+                        // Store loaded sample for placement
+                        std::cout << "Loaded: " << sample->getName() << " (" << sample->getDuration() << "s)" << std::endl;
+                    } else {
+                        std::cerr << "Failed to load: " << AudioFileLoader::getLastError() << std::endl;
+                    }
+                }
+            }
+
+            // Show active sources
+            auto& sources = simulation->getAudioSources();
+            if (!sources.empty()) {
+                ImGui::Spacing();
+                ImGui::TextDisabled("Active Sources: %zu", sources.size());
+
+                if (ImGui::Button("Clear All Sources")) {
+                    simulation->clearAudioSources();
+                }
+            }
+
+            ImGui::Spacing();
+            ImGui::Separator();
             ImGui::Text("Controls:");
 
-            if (listenerMode) {
+            if (sourceMode) {
+                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.7f, 0.8f, 1.0f));
+                ImGui::BulletText("Left Click: Place audio source");
+                ImGui::PopStyleColor();
+            } else if (listenerMode) {
                 ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.3f, 1.0f, 0.5f, 1.0f));
                 ImGui::BulletText("Left Click: Place listener (mic)");
                 ImGui::PopStyleColor();
@@ -619,6 +780,7 @@ int main() {
             } else {
                 ImGui::BulletText("Left Click: Create sound (5 Pa)");
             }
+            ImGui::BulletText("S: Audio Source mode (%s)", sourceMode ? "ON" : "OFF");
             ImGui::BulletText("V: Listener mode (%s)", listenerMode ? "ON" : "OFF");
             ImGui::BulletText("O: Obstacle mode (%s)", obstacleMode ? "ON" : "OFF");
             ImGui::BulletText("C: Clear obstacles");

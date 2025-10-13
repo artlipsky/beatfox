@@ -1,4 +1,3 @@
-#define MINIAUDIO_IMPLEMENTATION
 #include "../external/miniaudio.h"
 #include "AudioFileLoader.h"
 #include <iostream>
