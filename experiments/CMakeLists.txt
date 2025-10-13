@@ -51,6 +51,8 @@ set(IMGUI_SOURCES
 # Source files
 set(SOURCES
     src/main.cpp
+    src/Application.cpp
+    src/SimulationEngine.cpp
     src/Renderer.cpp
     src/AudioOutput.cpp
     src/glad.c
@@ -58,6 +60,8 @@ set(SOURCES
 )
 
 set(HEADERS
+    src/Application.h
+    src/SimulationEngine.h
     src/Renderer.h
     src/AudioOutput.h
     src/glad.h
@@ -140,11 +144,21 @@ add_library(SimulationCore STATIC
     src/AudioFileLoader.h
     src/MetalSimulationBackend.mm
     src/MetalSimulationBackend.h
+    src/CoordinateMapper.cpp
+    src/CoordinateMapper.h
+    src/SimulationUI.cpp
+    src/SimulationUI.h
+    src/InputHandler.cpp
+    src/InputHandler.h
 )
 
 target_include_directories(SimulationCore PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/external
     ${nanosvg_SOURCE_DIR}/src
+    ${IMGUI_DIR}
+    ${IMGUI_DIR}/backends
 )
 
 # Apple-specific: Enable Objective-C++ for Metal backend and link Metal framework
