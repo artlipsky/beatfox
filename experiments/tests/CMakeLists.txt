@@ -4,6 +4,7 @@ add_executable(
     WaveSimulationTest.cpp
     ListenerTest.cpp
     AudioOutputTest.cpp
+    InterferenceTest.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/AudioOutput.cpp
 )
 
