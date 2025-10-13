@@ -37,9 +37,10 @@ bool listenerMode = false;  // Toggle with 'V' key
 
 // Audio source mode
 bool sourceMode = false;    // Toggle with 'S' key
-int selectedPreset = 0;     // 0=Kick, 1=Snare, 2=Tone, 3=Impulse, 4=File
+int selectedPreset = 0;     // 0=Kick, 1=Snare, 2=Tone, 3=Impulse, 4=LoadedFile
 float sourceVolumeDb = 0.0f;  // Volume in dB
 bool sourceLoop = true;     // Loop audio
+std::shared_ptr<AudioSample> loadedSample;  // User-loaded audio file
 
 // Convert screen coordinates to simulation grid coordinates
 // Returns false if click is outside the room
@@ -131,6 +132,12 @@ void mouseButtonCallback(GLFWwindow* window, int button, int action, int /*mods*
                         sample = std::make_shared<AudioSample>(AudioSamplePresets::generateTone(440.0f, 1.0f));
                     } else if (selectedPreset == 3) {
                         sample = std::make_shared<AudioSample>(AudioSamplePresets::generateImpulse());
+                    } else if (selectedPreset == 4) {
+                        // Use loaded file
+                        sample = loadedSample;
+                        if (!sample) {
+                            std::cerr << "No audio file loaded! Please load a file first." << std::endl;
+                        }
                     }
 
                     if (sample) {
@@ -665,6 +672,13 @@ int main() {
             } else {
                 ImGui::BulletText("Time: %.2fx", timeScale);
             }
+
+            // Volume indicator
+            if (audioOutput) {
+                float volume = audioOutput->getVolume();
+                int volumePercent = static_cast<int>(volume * 100.0f);
+                ImGui::BulletText("Volume: %.1fx (%d%%)", volume, volumePercent);
+            }
             ImGui::PopStyleColor();
 
             ImGui::Spacing();
@@ -721,8 +735,8 @@ int main() {
             ImGui::Text("Audio Sources:");
             ImGui::PopStyleColor();
 
-            const char* presetNames[] = {"Kick Drum", "Snare Drum", "Tone (440Hz)", "Impulse"};
-            ImGui::Combo("Sample", &selectedPreset, presetNames, 4);
+            const char* presetNames[] = {"Kick Drum", "Snare Drum", "Tone (440Hz)", "Impulse", "Loaded File"};
+            ImGui::Combo("Sample", &selectedPreset, presetNames, 5);
 
             ImGui::SliderFloat("Volume (dB)", &sourceVolumeDb, -40.0f, 20.0f, "%.1f dB");
             ImGui::Checkbox("Loop", &sourceLoop);
@@ -742,7 +756,10 @@ int main() {
 
                     if (sample) {
                         // Store loaded sample for placement
+                        loadedSample = sample;
+                        selectedPreset = 4;  // Switch to "Loaded File" preset
                         std::cout << "Loaded: " << sample->getName() << " (" << sample->getDuration() << "s)" << std::endl;
+                        std::cout << "Switched to 'Loaded File' preset" << std::endl;
                     } else {
                         std::cerr << "Failed to load: " << AudioFileLoader::getLastError() << std::endl;
                     }

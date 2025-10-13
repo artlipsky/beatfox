@@ -110,9 +110,12 @@ void WaveSimulation::updateStep(float dt) {
 
     // Sample audio sources and inject into pressure field
     // This must happen BEFORE the wave propagation step
+    // CRITICAL FIX: Now called at sub-step rate (~11 kHz) instead of frame rate (60 Hz)
+    // This preserves high-frequency audio content!
     for (auto& source : audioSources) {
         if (source && source->isPlaying()) {
-            float pressureValue = source->getCurrentSample();
+            // Pass simulation timestep - audio speed matches simulation speed
+            float pressureValue = source->getCurrentSample(dt);
 
             int x = source->getX();
             int y = source->getY();

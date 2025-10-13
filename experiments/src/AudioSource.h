@@ -135,43 +135,63 @@ public:
     // ========================================================================
 
     /*
-     * Get current audio sample value
+     * Get current audio sample value for simulation injection
      *
-     * Returns the current sample value scaled by volume, then advances playback position.
-     * If at end of sample:
-     * - If looping: wrap to beginning
-     * - If not looping: stop playback and return 0
+     * This method handles the sampling rate properly by consuming audio samples
+     * based on the actual simulation timestep.
      *
+     * Key insight: The simulation uses sub-stepping for numerical stability,
+     * running at ~11 kHz effective rate (60 fps * 191 sub-steps).
+     * We should inject audio at this sub-step rate, not at frame rate!
+     *
+     * Strategy: Average audio samples corresponding to the timestep duration
+     * - For dt = 8.75e-5 s (typical sub-step), we need ~4 audio samples
+     * - Much better than averaging 800 samples per frame!
+     *
+     * @param dt Simulation timestep in seconds
      * @return Pressure value in Pascals to add to simulation
      */
-    float getCurrentSample() {
+    float getCurrentSample(float dt) {
         if (!playing || !sample) {
             return 0.0f;
         }
 
-        // Get sample at current position
-        float sampleValue = sample->getSample(playbackPosition);
+        const int audioSampleRate = sample->getSampleRate();
 
-        // Apply volume (convert dB to linear amplitude)
-        float amplitude = getAmplitude();
-        float pressure = sampleValue * amplitude;
+        // Calculate how many audio samples correspond to this timestep
+        // For dt = 8.75e-5 s and 48 kHz: samplesPerStep = 48000 * 8.75e-5 ≈ 4.2
+        const float samplesPerStepFloat = audioSampleRate * dt;
+        const int samplesPerStep = std::max(1, static_cast<int>(std::round(samplesPerStepFloat)));
 
-        // Advance playback position
-        playbackPosition++;
+        // Average audio samples for this timestep
+        float sum = 0.0f;
+        int samplesRead = 0;
 
-        // Check if reached end of sample
-        if (playbackPosition >= sample->getLength()) {
-            if (loop) {
-                playbackPosition = 0;  // Wrap to beginning
-            } else {
-                playing = false;  // Stop playback
-                return 0.0f;
+        for (int i = 0; i < samplesPerStep && playbackPosition < sample->getLength(); i++) {
+            sum += sample->getSample(playbackPosition);
+            playbackPosition++;
+            samplesRead++;
+
+            // Handle looping
+            if (playbackPosition >= sample->getLength()) {
+                if (loop) {
+                    playbackPosition = 0;
+                } else {
+                    playing = false;
+                    break;
+                }
             }
         }
 
+        // Average the samples
+        float averageSample = (samplesRead > 0) ? (sum / samplesRead) : 0.0f;
+
+        // Apply volume (convert dB to linear amplitude)
+        float amplitude = getAmplitude();
+        float pressure = averageSample * amplitude;
+
         // Scale to acoustic pressure
         // Assuming sample values [-1, 1] map to ±100 Pa (loud sound)
-        // This is adjustable based on desired intensity
         const float referencePressure = 100.0f;  // Pa (about 134 dB SPL)
         return pressure * referencePressure;
     }
