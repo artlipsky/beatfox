@@ -191,8 +191,9 @@ public:
         float pressure = averageSample * amplitude;
 
         // Scale to acoustic pressure
-        // Assuming sample values [-1, 1] map to ±100 Pa (loud sound)
-        const float referencePressure = 100.0f;  // Pa (about 134 dB SPL)
+        // Match AudioOutput's REFERENCE_PRESSURE (20 Pa) for proper normalization
+        // Sample values [-1, 1] map to ±20 Pa (loud hand clap, ~120 dB SPL)
+        const float referencePressure = 20.0f;  // Pa - matches AudioOutput normalization
         return pressure * referencePressure;
     }
 

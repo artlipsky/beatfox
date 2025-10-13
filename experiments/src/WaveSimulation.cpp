@@ -72,6 +72,9 @@ void WaveSimulation::update(float dt_frame) {
      * At 60 FPS (dt_frame ≈ 0.0167 s), we need multiple sub-steps
      */
 
+    // Clear listener sample buffer at start of frame
+    listenerSampleBuffer.clear();
+
     // Calculate maximum stable time step (CFL condition)
     const float CFL_SAFETY = 0.6f;  // Safety factor (< 0.707)
     float dt_max = CFL_SAFETY * dx / soundSpeed;
@@ -260,6 +263,13 @@ void WaveSimulation::updateStep(float dt) {
     // Time step: rotate buffers
     std::swap(pressurePrev, pressure);
     std::swap(pressure, pressureNext);
+
+    // Collect listener sample at sub-step rate
+    // CRITICAL FIX: Sample listener at same rate as audio injection (~11 kHz)
+    // This captures all high-frequency content, not just low-frequency envelope
+    if (listenerEnabled) {
+        listenerSampleBuffer.push_back(getListenerPressure());
+    }
 }
 
 void WaveSimulation::addPressureSource(int x, int y, float pressureAmplitude) {
@@ -453,6 +463,21 @@ float WaveSimulation::getListenerPressure() const {
 
     // Sample pressure at listener position
     return pressure[index(listenerX, listenerY)];
+}
+
+std::vector<float> WaveSimulation::getListenerSamples() {
+    /*
+     * Get all listener samples collected during last update
+     *
+     * CRITICAL FIX for audio quality:
+     * Returns all ~191 samples collected per frame at sub-step rate (~11 kHz).
+     * This preserves all high-frequency audio content instead of just
+     * sampling once per frame at 60 Hz (which caused "boom boom" bass sounds).
+     *
+     * The buffer is moved (not copied) for efficiency and is automatically
+     * cleared, ready for the next frame.
+     */
+    return std::move(listenerSampleBuffer);
 }
 
 void WaveSimulation::applyDampingPreset(const DampingPreset& preset) {

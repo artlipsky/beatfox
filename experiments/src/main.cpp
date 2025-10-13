@@ -522,10 +522,14 @@ int main() {
         // Update simulation with scaled time step (for slow motion)
         simulation->update(fixedDt * timeScale);
 
-        // Sample pressure at listener and submit to audio
+        // Submit all listener samples collected during sub-stepping
+        // CRITICAL FIX: This preserves all high-frequency audio content!
+        // Previously sampled once per frame (60 Hz) - missing 99% of audio
+        // Now submits all ~191 sub-step samples (~11 kHz effective rate)
+        // Uses bulk submission with proper upsampling to avoid buffer overflow
         if (simulation->hasListener() && audioOutput) {
-            float pressure = simulation->getListenerPressure();
-            audioOutput->submitPressureSample(pressure, timeScale);
+            std::vector<float> samples = simulation->getListenerSamples();
+            audioOutput->submitPressureSamples(samples, timeScale);
         }
 
         // Start ImGui frame

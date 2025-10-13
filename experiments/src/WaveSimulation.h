@@ -75,6 +75,17 @@ public:
      */
     float getListenerPressure() const;
 
+    /*
+     * Get all listener samples collected during last update
+     *
+     * Returns all pressure samples collected at the listener position
+     * during sub-stepping (typically ~191 samples per frame).
+     * The buffer is cleared after retrieval.
+     *
+     * @return Vector of pressure samples in Pascals
+     */
+    std::vector<float> getListenerSamples();
+
     // ========================================================================
     // AUDIO SOURCES (Continuous sound sources)
     // ========================================================================
@@ -134,6 +145,7 @@ private:
     int listenerX;              // Listener x position (grid coordinates)
     int listenerY;              // Listener y position (grid coordinates)
     bool listenerEnabled;       // Listener enabled flag
+    std::vector<float> listenerSampleBuffer;  // Buffer for sub-step samples
 
     // Audio sources (continuous sound playback)
     std::vector<std::unique_ptr<AudioSource>> audioSources;

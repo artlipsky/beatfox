@@ -55,6 +55,17 @@ public:
     void submitPressureSample(float pressure, float timeScale);
 
     /*
+     * Submit multiple pressure samples without interpolation
+     *
+     * @param samples Vector of pressure samples in Pascals
+     * @param timeScale Simulation time scale
+     *
+     * This is used when the simulation already provides high-frequency samples
+     * (e.g., from sub-stepping), so no interpolation is needed.
+     */
+    void submitPressureSamples(const std::vector<float>& samples, float timeScale);
+
+    /*
      * Set audio volume (0.0 = silent, 1.0 = normal, > 1.0 = amplified)
      */
     void setVolume(float volume);
