@@ -262,6 +262,7 @@ TEST_F(CoordinateMapperTest, ZeroDimensions) {
 
     int gridX, gridY;
     bool result = mapperZero.screenToGrid(0.0, 0.0, gridX, gridY);
+    (void)result;  // Intentionally unused - just testing for crashes
 
     // Should handle gracefully without crashing (behavior is defined)
     // We don't strictly require false, just that it doesn't crash
