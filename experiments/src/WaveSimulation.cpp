@@ -1,22 +1,30 @@
 #include "WaveSimulation.h"
-#include "SVGLoader.h"
+
 #include <algorithm>
-#include <cstring>
 #include <cmath>
+#include <cstring>
 #include <iostream>
 
+#include "SVGLoader.h"
+
 WaveSimulation::WaveSimulation(int width, int height)
-    : width(width)
-    , height(height)
-    , soundSpeed(343.0f)    // Speed of sound in air at 20°C (m/s)
-    , damping(0.997f)       // Air absorption (waves fade over time)
-    , wallReflection(0.85f) // Wall reflection coefficient (15% energy loss per reflection)
-    , dx(0.05f)             // Spatial grid spacing: 1 pixel = 5 cm = 0.05 m
-    , currentPreset(DampingPreset::fromType(DampingPreset::Type::REALISTIC))  // Initialize with realistic preset
-    , listenerX(width / 2)  // Default listener at center
-    , listenerY(height / 2)
-    , listenerEnabled(false)
-{
+    : width(width),
+      height(height),
+      soundSpeed(343.0f)  // Speed of sound in air at 20°C (m/s)
+      ,
+      damping(0.997f)  // Air absorption (waves fade over time)
+      ,
+      wallReflection(0.85f)  // Wall reflection coefficient (15% energy loss per reflection)
+      ,
+      dx(0.05f)  // Spatial grid spacing: 1 pixel = 5 cm = 0.05 m
+      ,
+      currentPreset(DampingPreset::fromType(
+          DampingPreset::Type::REALISTIC))  // Initialize with realistic preset
+      ,
+      listenerX(width / 2)  // Default listener at center
+      ,
+      listenerY(height / 2),
+      listenerEnabled(false) {
     int size = width * height;
 
     // Initialize pressure fields to zero (ambient atmospheric pressure)
@@ -46,8 +54,7 @@ WaveSimulation::WaveSimulation(int width, int height)
      */
 }
 
-WaveSimulation::~WaveSimulation() {
-}
+WaveSimulation::~WaveSimulation() {}
 
 void WaveSimulation::update(float dt_frame) {
     /*
@@ -123,7 +130,7 @@ void WaveSimulation::updateStep(float dt) {
             }
 
             // Load current and neighbors with minimal index calculations
-            const float p_c  = pressure[idx];
+            const float p_c = pressure[idx];
             const float p_xp = pressure[idx + 1];
             const float p_xm = pressure[idx - 1];
             const float p_yp = pressure[rowBelow + x];
@@ -135,7 +142,7 @@ void WaveSimulation::updateStep(float dt) {
             // Leapfrog integration with combined damping
             // p^(n+1) = 2*damping*p^n - damping*p^(n-1) + damping*c²*dt²/dx² * ∇²p^n
             pressureNext[idx] = twoOverDamping * p_c - damping * pressurePrev[idx] +
-                               damping * c2_dt2_dx2 * laplacian;
+                                damping * c2_dt2_dx2 * laplacian;
         }
     }
 
@@ -147,53 +154,66 @@ void WaveSimulation::updateStep(float dt) {
     //    Waves reflect back with reduced energy
     //
     // 2. Absorbing (wallReflection ≈ 0):
-    //    Extrapolation boundary - wave continues outward
+    //    Zero boundaries - waves absorbed without propagation
     //    Simulates anechoic chamber (no reflections)
 
-    const bool absorbingWalls = (wallReflection < 0.1f);
     const int lastRow = (height - 1) * width;
     const int lastCol = width - 1;
 
+    const bool absorbingWalls = (wallReflection < 0.1f);
+
     if (absorbingWalls) {
-        // ABSORBING BOUNDARY: Extrapolate wave outward (no reflection)
-        // For anechoic chambers - waves exit the domain without bouncing back
+        // ONE-WAY WAVE EQUATION BOUNDARY (Engquist-Majda ABC)
+        // Only allows outward-traveling waves: ∂p/∂t + c*∂p/∂n = 0
+        // Discretized: p^(n+1) = p^n - (c*dt/dx)*(p^n - p_interior^n)
+
+        const float cfl = soundSpeed * dt / dx;        // CFL number
+        const float absorption = std::min(1.0f, cfl);  // Clamp for stability
 
         for (int x = 1; x < width - 1; x++) {
-            // Top: extrapolate upward
-            pressureNext[x] = 2.0f * pressureNext[width + x] - pressureNext[2 * width + x];
-            // Bottom: extrapolate downward
-            pressureNext[lastRow + x] = 2.0f * pressureNext[lastRow - width + x] - pressureNext[lastRow - 2 * width + x];
+            // Top boundary (y=0): wave traveling in +y direction
+            int idx = x;
+            pressureNext[idx] =
+                pressure[idx] - absorption * (pressure[idx] - pressure[idx + width]);
+
+            // Bottom boundary (y=height-1): wave traveling in -y direction
+            idx = lastRow + x;
+            pressureNext[idx] =
+                pressure[idx] - absorption * (pressure[idx] - pressure[idx - width]);
         }
 
         for (int y = 1; y < height - 1; y++) {
             const int rowOffset = y * width;
-            // Left: extrapolate leftward
-            pressureNext[rowOffset] = 2.0f * pressureNext[rowOffset + 1] -
-                                      pressureNext[rowOffset + 2];
-            // Right: extrapolate rightward
-            pressureNext[rowOffset + lastCol] = 2.0f * pressureNext[rowOffset + lastCol - 1] -
-                                                pressureNext[rowOffset + lastCol - 2];
+
+            // Left boundary (x=0): wave traveling in +x direction
+            pressureNext[rowOffset] =
+                pressure[rowOffset] - absorption * (pressure[rowOffset] - pressure[rowOffset + 1]);
+
+            // Right boundary (x=width-1): wave traveling in -x direction
+            int idx = rowOffset + lastCol;
+            pressureNext[idx] = pressure[idx] - absorption * (pressure[idx] - pressure[idx - 1]);
         }
 
-        // Corners: simple zero (corners have minimal effect)
+        // Corners: zero (simplest stable choice)
         pressureNext[0] = 0.0f;
         pressureNext[lastCol] = 0.0f;
         pressureNext[lastRow] = 0.0f;
         pressureNext[lastRow + lastCol] = 0.0f;
-
     } else {
         // REFLECTIVE BOUNDARY: Neumann condition with attenuation
         // Waves reflect back with energy loss based on wallReflection coefficient
 
         for (int x = 0; x < width; x++) {
             pressureNext[x] = pressureNext[width + x] * wallReflection;  // Top
-            pressureNext[lastRow + x] = pressureNext[lastRow - width + x] * wallReflection;  // Bottom
+            pressureNext[lastRow + x] =
+                pressureNext[lastRow - width + x] * wallReflection;  // Bottom
         }
 
         for (int y = 0; y < height; y++) {
             const int rowOffset = y * width;
             pressureNext[rowOffset] = pressureNext[rowOffset + 1] * wallReflection;  // Left
-            pressureNext[rowOffset + lastCol] = pressureNext[rowOffset + lastCol - 1] * wallReflection;  // Right
+            pressureNext[rowOffset + lastCol] =
+                pressureNext[rowOffset + lastCol - 1] * wallReflection;  // Right
         }
     }
 
@@ -224,16 +244,16 @@ void WaveSimulation::addPressureSource(int x, int y, float pressureAmplitude) {
             int px = x + dx;
             int py = y + dy;
 
-            if (px > 0 && px < width-1 && py > 0 && py < height-1) {
+            if (px > 0 && px < width - 1 && py > 0 && py < height - 1) {
                 // Don't add pressure to obstacle cells
                 if (obstacles[index(px, py)]) {
                     continue;
                 }
 
-                float r = std::sqrt(float(dx*dx + dy*dy));
+                float r = std::sqrt(float(dx * dx + dy * dy));
 
                 // Gaussian profile (smooth, no sharp edges)
-                float profile = std::exp(-r*r / (2.0f * sigma * sigma));
+                float profile = std::exp(-r * r / (2.0f * sigma * sigma));
 
                 // Add impulse to current pressure field
                 // This is a brief "kick" that will propagate away
@@ -259,8 +279,8 @@ void WaveSimulation::addObstacle(int x, int y, int radius) {
             int px = x + dx;
             int py = y + dy;
 
-            if (px > 0 && px < width-1 && py > 0 && py < height-1) {
-                float r = std::sqrt(float(dx*dx + dy*dy));
+            if (px > 0 && px < width - 1 && py > 0 && py < height - 1) {
+                float r = std::sqrt(float(dx * dx + dy * dy));
                 if (r <= radius) {
                     obstacles[index(px, py)] = 1;
                     // Set pressure to zero at obstacle
@@ -282,8 +302,8 @@ void WaveSimulation::removeObstacle(int x, int y, int radius) {
             int px = x + dx;
             int py = y + dy;
 
-            if (px > 0 && px < width-1 && py > 0 && py < height-1) {
-                float r = std::sqrt(float(dx*dx + dy*dy));
+            if (px > 0 && px < width - 1 && py > 0 && py < height - 1) {
+                float r = std::sqrt(float(dx * dx + dy * dy));
                 if (r <= radius) {
                     obstacles[index(px, py)] = 0;
                 }
@@ -367,7 +387,8 @@ void WaveSimulation::getListenerPosition(int& x, int& y) const {
 void WaveSimulation::setListenerEnabled(bool enabled) {
     listenerEnabled = enabled;
     if (enabled) {
-        std::cout << "WaveSimulation: Listener enabled at (" << listenerX << ", " << listenerY << ")" << std::endl;
+        std::cout << "WaveSimulation: Listener enabled at (" << listenerX << ", " << listenerY
+                  << ")" << std::endl;
     } else {
         std::cout << "WaveSimulation: Listener disabled" << std::endl;
     }
@@ -415,7 +436,6 @@ void WaveSimulation::applyDampingPreset(const DampingPreset& preset) {
     currentPreset = preset;
 
     // Log preset application (domain event)
-    std::cout << "WaveSimulation: Applied preset '" << preset.getName()
-              << "' - damping=" << damping
+    std::cout << "WaveSimulation: Applied preset '" << preset.getName() << "' - damping=" << damping
               << ", wallReflection=" << wallReflection << std::endl;
 }
