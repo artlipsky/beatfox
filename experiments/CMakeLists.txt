@@ -144,10 +144,13 @@ add_library(SimulationCore STATIC
     src/CoordinateMapper.h
     src/SimulationUI.cpp
     src/SimulationUI.h
+    src/InputHandler.cpp
+    src/InputHandler.h
 )
 
 target_include_directories(SimulationCore PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${CMAKE_CURRENT_SOURCE_DIR}/external
     ${nanosvg_SOURCE_DIR}/src
     ${IMGUI_DIR}
