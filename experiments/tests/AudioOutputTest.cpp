@@ -474,8 +474,8 @@ TEST_F(AudioOutputTest, AudioOutputInterfaceIsCleanAndExpressive) {
     audioOutput->setVolume(0.5f);
     audioOutput->setMuted(false);
 
-    float volume = audioOutput->getVolume();
-    bool muted = audioOutput->isMuted();
+    EXPECT_FLOAT_EQ(audioOutput->getVolume(), 0.5f);
+    EXPECT_FALSE(audioOutput->isMuted());
 
     audioOutput->stop();
 
@@ -517,8 +517,8 @@ TEST_F(AudioOutputTest, MultipleInitializeCallsAreHandled) {
      */
     ASSERT_TRUE(audioOutput->initialize(48000));
 
-    // Second initialize should not crash
-    bool result = audioOutput->initialize(48000);
+    // Second initialize should not crash (result may vary by implementation)
+    audioOutput->initialize(48000);
 
     SUCCEED();
 }

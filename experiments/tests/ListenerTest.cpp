@@ -384,12 +384,16 @@ TEST_F(ListenerTest, ListenerInterfaceIsCleanAndMinimal) {
 
     int x, y;
     simulation->getListenerPosition(x, y);
+    EXPECT_EQ(x, 50);
+    EXPECT_EQ(y, 25);
 
     simulation->setListenerEnabled(true);
-    bool enabled = simulation->hasListener();
+    EXPECT_TRUE(simulation->hasListener());
 
     float pressure = simulation->getListenerPressure();
+    // Pressure value depends on wave state, just verify no crash
+    (void)pressure;
 
     // Interface is complete and minimal
-    EXPECT_TRUE(true);
+    SUCCEED();
 }
