@@ -140,6 +140,8 @@ add_library(SimulationCore STATIC
     src/AudioFileLoader.h
     src/MetalSimulationBackend.mm
     src/MetalSimulationBackend.h
+    src/CoordinateMapper.cpp
+    src/CoordinateMapper.h
 )
 
 target_include_directories(SimulationCore PUBLIC

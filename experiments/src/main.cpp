@@ -12,6 +12,7 @@
 #include "AudioSource.h"
 #include "AudioSample.h"
 #include "AudioFileLoader.h"
+#include "CoordinateMapper.h"
 #include "portable-file-dialogs.h"
 
 // Window state
@@ -26,6 +27,7 @@ bool showHelp = true;
 WaveSimulation* simulation = nullptr;
 Renderer* renderer = nullptr;
 AudioOutput* audioOutput = nullptr;
+CoordinateMapper* coordinateMapper = nullptr;
 float timeScale = 0.01f;  // Time scale: 0.01 = 100x slower (for audible sound), 1.0 = real-time
 
 // Obstacle mode
@@ -45,49 +47,8 @@ std::shared_ptr<AudioSample> loadedSample;  // User-loaded audio file
 // Convert screen coordinates to simulation grid coordinates
 // Returns false if click is outside the room
 bool screenToGrid(double screenX, double screenY, int& gridX, int& gridY) {
-    if (!simulation || !renderer) return false;
-
-    // GLFW gives window coordinates, need to convert to framebuffer coordinates
-    // Get window size and framebuffer size
-    int winWidth, winHeight;
-    glfwGetWindowSize(glfwGetCurrentContext(), &winWidth, &winHeight);
-
-    int fbWidth, fbHeight;
-    glfwGetFramebufferSize(glfwGetCurrentContext(), &fbWidth, &fbHeight);
-
-    // Scale factor from window to framebuffer
-    float scaleX = (float)fbWidth / (float)winWidth;
-    float scaleY = (float)fbHeight / (float)winHeight;
-
-    // Convert to framebuffer coordinates
-    float fbX = screenX * scaleX;
-    float fbY = screenY * scaleY;
-
-    // Get room viewport bounds in framebuffer coordinates
-    float viewLeft, viewRight, viewBottom, viewTop;
-    renderer->getRoomViewport(viewLeft, viewRight, viewBottom, viewTop);
-
-    // Framebuffer Y is bottom-up, but input Y is top-down
-    float fbYFlipped = fbHeight - fbY;
-
-    // Check if click is inside the room viewport
-    if (fbX < viewLeft || fbX > viewRight ||
-        fbYFlipped < viewBottom || fbYFlipped > viewTop) {
-        return false;  // Click outside room
-    }
-
-    // Map from room viewport to simulation grid
-    float normalizedX = (fbX - viewLeft) / (viewRight - viewLeft);
-    float normalizedY = (fbYFlipped - viewBottom) / (viewTop - viewBottom);
-
-    gridX = static_cast<int>(normalizedX * simulation->getWidth());
-    gridY = static_cast<int>(normalizedY * simulation->getHeight());
-
-    // Clamp to valid range
-    gridX = std::max(0, std::min(gridX, simulation->getWidth() - 1));
-    gridY = std::max(0, std::min(gridY, simulation->getHeight() - 1));
-
-    return true;  // Valid click inside room
+    if (!coordinateMapper) return false;
+    return coordinateMapper->screenToGrid(screenX, screenY, gridX, gridY);
 }
 
 // Callbacks
@@ -97,6 +58,26 @@ void framebufferSizeCallback(GLFWwindow* window, int width, int height) {
     Renderer* renderer = static_cast<Renderer*>(glfwGetWindowUserPointer(window));
     if (renderer) {
         renderer->resize(width, height);
+
+        // Update coordinate mapper with new window dimensions
+        if (coordinateMapper && simulation) {
+            int winWidth, winHeight;
+            glfwGetWindowSize(window, &winWidth, &winHeight);
+
+            int fbWidth, fbHeight;
+            glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
+
+            float vLeft, vRight, vBottom, vTop;
+            renderer->getRoomViewport(vLeft, vRight, vBottom, vTop);
+
+            coordinateMapper->updateViewport(
+                winWidth, winHeight,
+                fbWidth, fbHeight,
+                simulation->getWidth(), simulation->getHeight(),
+                vLeft, vRight,
+                vBottom, vTop
+            );
+        }
     }
 }
 
@@ -492,6 +473,17 @@ int main() {
         return -1;
     }
 
+    // Initialize coordinate mapper for centralized coordinate transformations
+    CoordinateMapper mapperObj;
+    mapperObj.updateViewport(
+        winWidth, winHeight,
+        fbWidth, fbHeight,
+        gridWidth, gridHeight,
+        vLeft, vRight,
+        vBottom, vTop
+    );
+    coordinateMapper = &mapperObj;
+
     glfwSetWindowUserPointer(window, renderer);
 
     std::cout << "\n=== Acoustic Pressure Simulation ===" << std::endl;
@@ -551,35 +543,13 @@ int main() {
         rendererObj.render(*simulation);
 
         // Render listener indicator if enabled
-        if (simulation->hasListener()) {
+        if (simulation->hasListener() && coordinateMapper) {
             int listenerX, listenerY;
             simulation->getListenerPosition(listenerX, listenerY);
 
-            // Get window and framebuffer sizes for coordinate conversion
-            GLFWwindow* window = glfwGetCurrentContext();
-            int winWidth, winHeight;
-            glfwGetWindowSize(window, &winWidth, &winHeight);
-            int fbWidth, fbHeight;
-            glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
-
-            // Get room viewport bounds (in framebuffer coordinates)
-            float viewLeft, viewRight, viewBottom, viewTop;
-            renderer->getRoomViewport(viewLeft, viewRight, viewBottom, viewTop);
-
-            // Map grid coordinates to framebuffer coordinates (bottom-up Y)
-            float normalizedX = (float)listenerX / (float)simulation->getWidth();
-            float normalizedY = (float)listenerY / (float)simulation->getHeight();
-
-            float fbX = viewLeft + normalizedX * (viewRight - viewLeft);
-            float fbY = viewBottom + normalizedY * (viewTop - viewBottom);
-
-            // Convert from framebuffer coordinates to window coordinates
-            // ImGui uses window coordinates (top-down Y)
-            float scaleX = (float)winWidth / (float)fbWidth;
-            float scaleY = (float)winHeight / (float)fbHeight;
-
-            float windowX = fbX * scaleX;
-            float windowY = (fbHeight - fbY) * scaleY;  // Flip Y axis
+            // Convert grid coordinates to window coordinates using CoordinateMapper
+            float windowX, windowY;
+            coordinateMapper->gridToWindow(listenerX, listenerY, windowX, windowY);
 
             // Draw listener marker using ImGui draw list (overlay)
             ImDrawList* drawList = ImGui::GetBackgroundDrawList();
@@ -597,18 +567,7 @@ int main() {
 
         // Render audio source indicators
         auto& audioSources = simulation->getAudioSources();
-        if (!audioSources.empty()) {
-            // Get window and framebuffer sizes for coordinate conversion
-            GLFWwindow* window = glfwGetCurrentContext();
-            int winWidth, winHeight;
-            glfwGetWindowSize(window, &winWidth, &winHeight);
-            int fbWidth, fbHeight;
-            glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
-
-            // Get room viewport bounds (in framebuffer coordinates)
-            float viewLeft, viewRight, viewBottom, viewTop;
-            renderer->getRoomViewport(viewLeft, viewRight, viewBottom, viewTop);
-
+        if (!audioSources.empty() && coordinateMapper) {
             ImDrawList* drawList = ImGui::GetBackgroundDrawList();
 
             for (size_t i = 0; i < audioSources.size(); i++) {
@@ -618,20 +577,9 @@ int main() {
                 int sourceX = source->getX();
                 int sourceY = source->getY();
 
-                // Map grid coordinates to framebuffer coordinates (bottom-up Y)
-                float normalizedX = (float)sourceX / (float)simulation->getWidth();
-                float normalizedY = (float)sourceY / (float)simulation->getHeight();
-
-                float fbX = viewLeft + normalizedX * (viewRight - viewLeft);
-                float fbY = viewBottom + normalizedY * (viewTop - viewBottom);
-
-                // Convert from framebuffer coordinates to window coordinates
-                // ImGui uses window coordinates (top-down Y)
-                float scaleX = (float)winWidth / (float)fbWidth;
-                float scaleY = (float)winHeight / (float)fbHeight;
-
-                float windowX = fbX * scaleX;
-                float windowY = (fbHeight - fbY) * scaleY;  // Flip Y axis
+                // Convert grid coordinates to window coordinates using CoordinateMapper
+                float windowX, windowY;
+                coordinateMapper->gridToWindow(sourceX, sourceY, windowX, windowY);
 
                 // Choose color based on playback state
                 ImU32 fillColor = source->isPlaying()
