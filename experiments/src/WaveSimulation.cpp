@@ -1,21 +1,30 @@
 #include "WaveSimulation.h"
-#include "SVGLoader.h"
+
 #include <algorithm>
-#include <cstring>
 #include <cmath>
+#include <cstring>
 #include <iostream>
 
+#include "SVGLoader.h"
+
 WaveSimulation::WaveSimulation(int width, int height)
-    : width(width)
-    , height(height)
-    , soundSpeed(343.0f)    // Speed of sound in air at 20°C (m/s)
-    , damping(0.997f)       // Air absorption (waves fade over time)
-    , wallReflection(0.85f) // Wall reflection coefficient (15% energy loss per reflection)
-    , dx(0.05f)             // Spatial grid spacing: 1 pixel = 5 cm = 0.05 m
-    , listenerX(width / 2)  // Default listener at center
-    , listenerY(height / 2)
-    , listenerEnabled(false)
-{
+    : width(width),
+      height(height),
+      soundSpeed(343.0f)  // Speed of sound in air at 20°C (m/s)
+      ,
+      damping(0.997f)  // Air absorption (waves fade over time)
+      ,
+      wallReflection(0.85f)  // Wall reflection coefficient (15% energy loss per reflection)
+      ,
+      dx(0.05f)  // Spatial grid spacing: 1 pixel = 5 cm = 0.05 m
+      ,
+      currentPreset(DampingPreset::fromType(
+          DampingPreset::Type::REALISTIC))  // Initialize with realistic preset
+      ,
+      listenerX(width / 2)  // Default listener at center
+      ,
+      listenerY(height / 2),
+      listenerEnabled(false) {
     int size = width * height;
 
     // Initialize pressure fields to zero (ambient atmospheric pressure)
@@ -45,8 +54,7 @@ WaveSimulation::WaveSimulation(int width, int height)
      */
 }
 
-WaveSimulation::~WaveSimulation() {
-}
+WaveSimulation::~WaveSimulation() {}
 
 void WaveSimulation::update(float dt_frame) {
     /*
@@ -63,6 +71,9 @@ void WaveSimulation::update(float dt_frame) {
      *
      * At 60 FPS (dt_frame ≈ 0.0167 s), we need multiple sub-steps
      */
+
+    // Clear listener sample buffer at start of frame
+    listenerSampleBuffer.clear();
 
     // Calculate maximum stable time step (CFL condition)
     const float CFL_SAFETY = 0.6f;  // Safety factor (< 0.707)
@@ -100,6 +111,46 @@ void WaveSimulation::updateStep(float dt) {
      * Numerical method: FDTD with leapfrog time integration (2nd order accurate)
      */
 
+    // Sample audio sources and inject into pressure field
+    // This must happen BEFORE the wave propagation step
+    // CRITICAL FIX: Now called at sub-step rate (~11 kHz) instead of frame rate (60 Hz)
+    // This preserves high-frequency audio content!
+    for (auto& source : audioSources) {
+        if (source && source->isPlaying()) {
+            // Pass simulation timestep - audio speed matches simulation speed
+            float pressureValue = source->getCurrentSample(dt);
+
+            int x = source->getX();
+            int y = source->getY();
+
+            // Check bounds
+            if (x >= 0 && x < width && y >= 0 && y < height) {
+                // Add pressure at source location
+                // Using Gaussian spread to avoid sharp discontinuity
+                const int spreadRadius = 2;
+                const float sigma = 1.5f;
+
+                for (int dy = -spreadRadius; dy <= spreadRadius; dy++) {
+                    for (int dx = -spreadRadius; dx <= spreadRadius; dx++) {
+                        int px = x + dx;
+                        int py = y + dy;
+
+                        if (px > 0 && px < width - 1 && py > 0 && py < height - 1) {
+                            if (obstacles[index(px, py)]) {
+                                continue;  // Don't add pressure to obstacles
+                            }
+
+                            float r = std::sqrt(float(dx * dx + dy * dy));
+                            float profile = std::exp(-r * r / (2.0f * sigma * sigma));
+
+                            pressure[index(px, py)] += pressureValue * profile;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     // Compute CFL coefficient: (c*dt/dx)²
     const float c2_dt2_dx2 = (soundSpeed * soundSpeed * dt * dt) / (dx * dx);
     const float twoOverDamping = 2.0f * damping;
@@ -122,7 +173,7 @@ void WaveSimulation::updateStep(float dt) {
             }
 
             // Load current and neighbors with minimal index calculations
-            const float p_c  = pressure[idx];
+            const float p_c = pressure[idx];
             const float p_xp = pressure[idx + 1];
             const float p_xm = pressure[idx - 1];
             const float p_yp = pressure[rowBelow + x];
@@ -134,32 +185,91 @@ void WaveSimulation::updateStep(float dt) {
             // Leapfrog integration with combined damping
             // p^(n+1) = 2*damping*p^n - damping*p^(n-1) + damping*c²*dt²/dx² * ∇²p^n
             pressureNext[idx] = twoOverDamping * p_c - damping * pressurePrev[idx] +
-                               damping * c2_dt2_dx2 * laplacian;
+                                damping * c2_dt2_dx2 * laplacian;
         }
     }
 
-    // Boundary conditions: REFLECTIVE WALLS with energy loss
-    // Using Neumann boundary condition: ∂p/∂n = 0 (zero pressure gradient)
-    // Plus reflection coefficient to simulate energy absorption by walls
+    // Boundary conditions: REFLECTIVE or ABSORBING walls
+    //
+    // Two types:
+    // 1. Reflective (wallReflection > 0.1):
+    //    Neumann condition (∂p/∂n = 0) with attenuation
+    //    Waves reflect back with reduced energy
+    //
+    // 2. Absorbing (wallReflection ≈ 0):
+    //    Zero boundaries - waves absorbed without propagation
+    //    Simulates anechoic chamber (no reflections)
 
-    // Top and bottom edges (optimized horizontal loops)
     const int lastRow = (height - 1) * width;
-    for (int x = 0; x < width; x++) {
-        pressureNext[x] = pressureNext[width + x] * wallReflection;  // Top
-        pressureNext[lastRow + x] = pressureNext[lastRow - width + x] * wallReflection;  // Bottom
-    }
-
-    // Left and right edges (vertical loops)
     const int lastCol = width - 1;
-    for (int y = 0; y < height; y++) {
-        const int rowOffset = y * width;
-        pressureNext[rowOffset] = pressureNext[rowOffset + 1] * wallReflection;  // Left
-        pressureNext[rowOffset + lastCol] = pressureNext[rowOffset + lastCol - 1] * wallReflection;  // Right
+
+    const bool absorbingWalls = (wallReflection < 0.1f);
+
+    if (absorbingWalls) {
+        // ONE-WAY WAVE EQUATION BOUNDARY (Engquist-Majda ABC)
+        // Only allows outward-traveling waves: ∂p/∂t + c*∂p/∂n = 0
+        // Discretized: p^(n+1) = p^n - (c*dt/dx)*(p^n - p_interior^n)
+
+        const float cfl = soundSpeed * dt / dx;        // CFL number
+        const float absorption = std::min(1.0f, cfl);  // Clamp for stability
+
+        for (int x = 1; x < width - 1; x++) {
+            // Top boundary (y=0): wave traveling in +y direction
+            int idx = x;
+            pressureNext[idx] =
+                pressure[idx] - absorption * (pressure[idx] - pressure[idx + width]);
+
+            // Bottom boundary (y=height-1): wave traveling in -y direction
+            idx = lastRow + x;
+            pressureNext[idx] =
+                pressure[idx] - absorption * (pressure[idx] - pressure[idx - width]);
+        }
+
+        for (int y = 1; y < height - 1; y++) {
+            const int rowOffset = y * width;
+
+            // Left boundary (x=0): wave traveling in +x direction
+            pressureNext[rowOffset] =
+                pressure[rowOffset] - absorption * (pressure[rowOffset] - pressure[rowOffset + 1]);
+
+            // Right boundary (x=width-1): wave traveling in -x direction
+            int idx = rowOffset + lastCol;
+            pressureNext[idx] = pressure[idx] - absorption * (pressure[idx] - pressure[idx - 1]);
+        }
+
+        // Corners: zero (simplest stable choice)
+        pressureNext[0] = 0.0f;
+        pressureNext[lastCol] = 0.0f;
+        pressureNext[lastRow] = 0.0f;
+        pressureNext[lastRow + lastCol] = 0.0f;
+    } else {
+        // REFLECTIVE BOUNDARY: Neumann condition with attenuation
+        // Waves reflect back with energy loss based on wallReflection coefficient
+
+        for (int x = 0; x < width; x++) {
+            pressureNext[x] = pressureNext[width + x] * wallReflection;  // Top
+            pressureNext[lastRow + x] =
+                pressureNext[lastRow - width + x] * wallReflection;  // Bottom
+        }
+
+        for (int y = 0; y < height; y++) {
+            const int rowOffset = y * width;
+            pressureNext[rowOffset] = pressureNext[rowOffset + 1] * wallReflection;  // Left
+            pressureNext[rowOffset + lastCol] =
+                pressureNext[rowOffset + lastCol - 1] * wallReflection;  // Right
+        }
     }
 
     // Time step: rotate buffers
     std::swap(pressurePrev, pressure);
     std::swap(pressure, pressureNext);
+
+    // Collect listener sample at sub-step rate
+    // CRITICAL FIX: Sample listener at same rate as audio injection (~11 kHz)
+    // This captures all high-frequency content, not just low-frequency envelope
+    if (listenerEnabled) {
+        listenerSampleBuffer.push_back(getListenerPressure());
+    }
 }
 
 void WaveSimulation::addPressureSource(int x, int y, float pressureAmplitude) {
@@ -184,16 +294,16 @@ void WaveSimulation::addPressureSource(int x, int y, float pressureAmplitude) {
             int px = x + dx;
             int py = y + dy;
 
-            if (px > 0 && px < width-1 && py > 0 && py < height-1) {
+            if (px > 0 && px < width - 1 && py > 0 && py < height - 1) {
                 // Don't add pressure to obstacle cells
                 if (obstacles[index(px, py)]) {
                     continue;
                 }
 
-                float r = std::sqrt(float(dx*dx + dy*dy));
+                float r = std::sqrt(float(dx * dx + dy * dy));
 
                 // Gaussian profile (smooth, no sharp edges)
-                float profile = std::exp(-r*r / (2.0f * sigma * sigma));
+                float profile = std::exp(-r * r / (2.0f * sigma * sigma));
 
                 // Add impulse to current pressure field
                 // This is a brief "kick" that will propagate away
@@ -219,8 +329,8 @@ void WaveSimulation::addObstacle(int x, int y, int radius) {
             int px = x + dx;
             int py = y + dy;
 
-            if (px > 0 && px < width-1 && py > 0 && py < height-1) {
-                float r = std::sqrt(float(dx*dx + dy*dy));
+            if (px > 0 && px < width - 1 && py > 0 && py < height - 1) {
+                float r = std::sqrt(float(dx * dx + dy * dy));
                 if (r <= radius) {
                     obstacles[index(px, py)] = 1;
                     // Set pressure to zero at obstacle
@@ -242,8 +352,8 @@ void WaveSimulation::removeObstacle(int x, int y, int radius) {
             int px = x + dx;
             int py = y + dy;
 
-            if (px > 0 && px < width-1 && py > 0 && py < height-1) {
-                float r = std::sqrt(float(dx*dx + dy*dy));
+            if (px > 0 && px < width - 1 && py > 0 && py < height - 1) {
+                float r = std::sqrt(float(dx * dx + dy * dy));
                 if (r <= radius) {
                     obstacles[index(px, py)] = 0;
                 }
@@ -327,7 +437,8 @@ void WaveSimulation::getListenerPosition(int& x, int& y) const {
 void WaveSimulation::setListenerEnabled(bool enabled) {
     listenerEnabled = enabled;
     if (enabled) {
-        std::cout << "WaveSimulation: Listener enabled at (" << listenerX << ", " << listenerY << ")" << std::endl;
+        std::cout << "WaveSimulation: Listener enabled at (" << listenerX << ", " << listenerY
+                  << ")" << std::endl;
     } else {
         std::cout << "WaveSimulation: Listener disabled" << std::endl;
     }
@@ -352,4 +463,89 @@ float WaveSimulation::getListenerPressure() const {
 
     // Sample pressure at listener position
     return pressure[index(listenerX, listenerY)];
+}
+
+std::vector<float> WaveSimulation::getListenerSamples() {
+    /*
+     * Get all listener samples collected during last update
+     *
+     * CRITICAL FIX for audio quality:
+     * Returns all ~191 samples collected per frame at sub-step rate (~11 kHz).
+     * This preserves all high-frequency audio content instead of just
+     * sampling once per frame at 60 Hz (which caused "boom boom" bass sounds).
+     *
+     * The buffer is moved (not copied) for efficiency and is automatically
+     * cleared, ready for the next frame.
+     */
+    return std::move(listenerSampleBuffer);
+}
+
+void WaveSimulation::applyDampingPreset(const DampingPreset& preset) {
+    /*
+     * Apply Damping Preset (Domain Logic)
+     *
+     * This method encapsulates the domain rule for applying acoustic
+     * environment presets. It updates the simulation parameters according
+     * to the domain-defined preset values.
+     *
+     * Clean Architecture: This is a domain service method that coordinates
+     * the application of a value object (DampingPreset) to the entity
+     * (WaveSimulation).
+     */
+
+    // Update physics parameters from preset
+    damping = preset.getDamping();
+    wallReflection = preset.getWallReflection();
+
+    // Store current preset for querying
+    currentPreset = preset;
+
+    // Log preset application (domain event)
+    std::cout << "WaveSimulation: Applied preset '" << preset.getName() << "' - damping=" << damping
+              << ", wallReflection=" << wallReflection << std::endl;
+}
+
+// ============================================================================
+// AUDIO SOURCE MANAGEMENT
+// ============================================================================
+
+size_t WaveSimulation::addAudioSource(std::unique_ptr<AudioSource> source) {
+    /*
+     * Add audio source to simulation
+     *
+     * Audio sources continuously emit sound based on their audio sample data.
+     * Each frame, the source's current sample is added to the pressure field.
+     */
+
+    if (!source) {
+        return SIZE_MAX;  // Invalid ID
+    }
+
+    size_t id = audioSources.size();
+    audioSources.push_back(std::move(source));
+
+    std::cout << "WaveSimulation: Added audio source " << id
+              << " at (" << audioSources[id]->getX() << ", " << audioSources[id]->getY() << ")"
+              << std::endl;
+
+    return id;
+}
+
+void WaveSimulation::removeAudioSource(size_t sourceId) {
+    if (sourceId < audioSources.size()) {
+        audioSources.erase(audioSources.begin() + sourceId);
+        std::cout << "WaveSimulation: Removed audio source " << sourceId << std::endl;
+    }
+}
+
+AudioSource* WaveSimulation::getAudioSource(size_t sourceId) {
+    if (sourceId < audioSources.size()) {
+        return audioSources[sourceId].get();
+    }
+    return nullptr;
+}
+
+void WaveSimulation::clearAudioSources() {
+    audioSources.clear();
+    std::cout << "WaveSimulation: Cleared all audio sources" << std::endl;
 }

@@ -129,6 +129,58 @@ void AudioOutput::submitPressureSample(float pressure, float /*timeScale*/) {
     previousPressure = pressure;
 }
 
+void AudioOutput::submitPressureSamples(const std::vector<float>& samples, float /*timeScale*/) {
+    /*
+     * Submit multiple pressure samples without interpolation
+     *
+     * CRITICAL FIX: When simulation provides high-frequency samples from sub-stepping
+     * (e.g., ~191 samples at 11 kHz), we need to upsample to 48 kHz without the
+     * massive over-generation that caused distortion.
+     *
+     * Strategy:
+     * - Input: ~191 samples per frame (11.46 kHz at 60 FPS)
+     * - Output: Need 48 kHz
+     * - Upsampling ratio: 48000 / 11460 ≈ 4.19x
+     * - Use linear interpolation between consecutive input samples
+     */
+
+    if (samples.empty()) {
+        return;
+    }
+
+    std::lock_guard<std::mutex> lock(bufferMutex);
+
+    // Calculate upsampling ratio
+    // We get ~191 samples per frame at 60 FPS = ~11,460 samples/sec
+    // We need to upsample to 48,000 samples/sec
+    int samplesPerFrame = static_cast<int>(sampleRate / simulationFrameRate);  // 800
+    float upsampleRatio = static_cast<float>(samplesPerFrame) / samples.size();  // ~4.19
+
+    // Interpolate between consecutive samples to upsample
+    for (size_t i = 0; i < samples.size(); i++) {
+        float currentSample = samples[i];
+        float nextSample = (i + 1 < samples.size()) ? samples[i + 1] : currentSample;
+
+        // Calculate how many output samples for this input sample
+        int outputCount = static_cast<int>(std::round(upsampleRatio));
+
+        // Linearly interpolate between current and next sample
+        for (int j = 0; j < outputCount; j++) {
+            float t = static_cast<float>(j) / static_cast<float>(outputCount);
+            float interpolated = currentSample + t * (nextSample - currentSample);
+
+            // Write to ring buffer
+            audioBuffer[bufferWritePos] = interpolated;
+            bufferWritePos = (bufferWritePos + 1) % audioBuffer.size();
+
+            // Prevent buffer overrun
+            if (bufferWritePos == bufferReadPos) {
+                bufferReadPos = (bufferReadPos + 1) % audioBuffer.size();
+            }
+        }
+    }
+}
+
 void AudioOutput::audioCallback(ma_device* pDevice, void* pOutput, const void* /*pInput*/, unsigned int frameCount) {
     AudioOutput* audio = (AudioOutput*)pDevice->pUserData;
     float* outputBuffer = (float*)pOutput;

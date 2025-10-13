@@ -3,6 +3,9 @@
 #include <vector>
 #include <cmath>
 #include <string>
+#include <memory>
+#include "DampingPreset.h"
+#include "AudioSource.h"
 
 class WaveSimulation {
 public:
@@ -23,6 +26,18 @@ public:
     void setDamping(float damp) { damping = damp; }
     float getWaveSpeed() const { return soundSpeed; }
     float getDamping() const { return damping; }
+
+    /*
+     * Damping Presets (Domain-driven design)
+     *
+     * Apply acoustic environment presets following domain logic.
+     * This allows users to switch between different acoustic scenarios
+     * without understanding the underlying physics parameters.
+     */
+    void applyDampingPreset(const DampingPreset& preset);
+    DampingPreset getCurrentPreset() const { return currentPreset; }
+    float getWallReflection() const { return wallReflection; }
+    void setWallReflection(float reflection) { wallReflection = reflection; }
 
     // Physical dimensions
     float getPhysicalWidth() const { return width * dx; }  // meters
@@ -60,6 +75,55 @@ public:
      */
     float getListenerPressure() const;
 
+    /*
+     * Get all listener samples collected during last update
+     *
+     * Returns all pressure samples collected at the listener position
+     * during sub-stepping (typically ~191 samples per frame).
+     * The buffer is cleared after retrieval.
+     *
+     * @return Vector of pressure samples in Pascals
+     */
+    std::vector<float> getListenerSamples();
+
+    // ========================================================================
+    // AUDIO SOURCES (Continuous sound sources)
+    // ========================================================================
+
+    /*
+     * Add audio source to simulation
+     *
+     * @param source Audio source to add (ownership transferred)
+     * @return ID of added source (index in sources list)
+     */
+    size_t addAudioSource(std::unique_ptr<AudioSource> source);
+
+    /*
+     * Remove audio source by ID
+     *
+     * @param sourceId ID returned by addAudioSource
+     */
+    void removeAudioSource(size_t sourceId);
+
+    /*
+     * Get audio source by ID
+     *
+     * @return Pointer to source, or nullptr if invalid ID
+     */
+    AudioSource* getAudioSource(size_t sourceId);
+
+    /*
+     * Get all audio sources (const)
+     */
+    const std::vector<std::unique_ptr<AudioSource>>& getAudioSources() const {
+        return audioSources;
+    }
+
+    /*
+     * Clear all audio sources
+     */
+    void clearAudioSources();
+
 private:
     int width;              // Grid width (pixels)
     int height;             // Grid height (pixels)
@@ -67,6 +131,7 @@ private:
     float damping;          // Air absorption coefficient (dimensionless)
     float wallReflection;   // Wall reflection coefficient (0-1, energy loss at walls)
     float dx;               // Spatial step: 1 pixel = 1 cm = 0.01 m
+    DampingPreset currentPreset;  // Current acoustic environment preset
 
     // Acoustic pressure field (deviation from ambient pressure)
     std::vector<float> pressure;      // Current pressure field (Pa)
@@ -80,6 +145,10 @@ private:
     int listenerX;              // Listener x position (grid coordinates)
     int listenerY;              // Listener y position (grid coordinates)
     bool listenerEnabled;       // Listener enabled flag
+    std::vector<float> listenerSampleBuffer;  // Buffer for sub-step samples
+
+    // Audio sources (continuous sound playback)
+    std::vector<std::unique_ptr<AudioSource>> audioSources;
 
     void updateStep(float dt);  // Single time step
 
