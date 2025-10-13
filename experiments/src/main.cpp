@@ -36,6 +36,7 @@ int obstacleRadius = 5;     // Obstacle brush size (pixels)
 
 // Listener mode (virtual microphone)
 bool listenerMode = false;  // Toggle with 'V' key
+bool draggingListener = false;  // True when dragging the listener
 
 // Audio source mode
 bool sourceMode = false;    // Toggle with 'S' key
@@ -92,6 +93,24 @@ void mouseButtonCallback(GLFWwindow* window, int button, int action, int /*mods*
 
             int gridX, gridY;
             if (screenToGrid(xpos, ypos, gridX, gridY)) {
+                // Check if clicking on existing listener for dragging
+                if (simulation->hasListener()) {
+                    int listenerX, listenerY;
+                    simulation->getListenerPosition(listenerX, listenerY);
+
+                    // Check if click is within listener radius (use Manhattan distance for simplicity)
+                    int dx = gridX - listenerX;
+                    int dy = gridY - listenerY;
+                    int distSquared = dx * dx + dy * dy;
+                    const int listenerRadiusSquared = 10 * 10;  // 10 pixel radius
+
+                    if (distSquared <= listenerRadiusSquared) {
+                        // Start dragging the listener
+                        draggingListener = true;
+                        return;  // Don't process other actions
+                    }
+                }
+
                 if (listenerMode) {
                     // Place listener (virtual microphone)
                     simulation->setListenerPosition(gridX, gridY);
@@ -136,6 +155,7 @@ void mouseButtonCallback(GLFWwindow* window, int button, int action, int /*mods*
             }
         } else if (action == GLFW_RELEASE) {
             mousePressed = false;
+            draggingListener = false;  // Stop dragging listener
         }
     } else if (button == GLFW_MOUSE_BUTTON_RIGHT) {
         if (action == GLFW_PRESS) {
@@ -152,9 +172,16 @@ void mouseButtonCallback(GLFWwindow* window, int button, int action, int /*mods*
 
 void cursorPosCallback(GLFWwindow* /*window*/, double xpos, double ypos) {
     // Track mouse position
-    // Note: We don't add sources while dragging - click creates single impulses
     lastMouseX = xpos;
     lastMouseY = ypos;
+
+    // Update listener position if dragging
+    if (draggingListener && simulation) {
+        int gridX, gridY;
+        if (screenToGrid(xpos, ypos, gridX, gridY)) {
+            simulation->setListenerPosition(gridX, gridY);
+        }
+    }
 }
 
 void keyCallback(GLFWwindow* window, int key, int /*scancode*/, int action, int mods) {
@@ -483,6 +510,11 @@ int main() {
         vBottom, vTop
     );
     coordinateMapper = &mapperObj;
+
+    // Place listener at center of room by default
+    simulation->setListenerPosition(gridWidth / 2, gridHeight / 2);
+    simulation->setListenerEnabled(true);
+    std::cout << "Listener initialized at center: (" << (gridWidth / 2) << ", " << (gridHeight / 2) << ")" << std::endl;
 
     glfwSetWindowUserPointer(window, renderer);
 

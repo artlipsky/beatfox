@@ -44,23 +44,25 @@ TEST_F(CoordinateMapperTest, ScreenToGrid_CenterPoint) {
 }
 
 TEST_F(CoordinateMapperTest, ScreenToGrid_TopLeftCorner) {
-    // Top-left corner of viewport
+    // Top-left corner of viewport (top-left in screen coords)
+    // Should map to grid bottom-left (gridY=0 is bottom of room)
     int gridX, gridY;
     bool result = mapper.screenToGrid(20.0, 50.0, gridX, gridY);
 
     EXPECT_TRUE(result);
     EXPECT_EQ(gridX, 0);
-    EXPECT_EQ(gridY, 0);
+    EXPECT_EQ(gridY, 199);  // Top of screen = top of room = gridY=height-1
 }
 
 TEST_F(CoordinateMapperTest, ScreenToGrid_BottomRightCorner) {
-    // Bottom-right corner of viewport
+    // Bottom-right corner of viewport (bottom of screen in Y-down coords)
+    // Should map to grid bottom-right (gridY=0 is bottom of room)
     int gridX, gridY;
     bool result = mapper.screenToGrid(1260.0, 670.0, gridX, gridY);
 
     EXPECT_TRUE(result);
-    EXPECT_EQ(gridX, 399);  // Last valid grid X
-    EXPECT_EQ(gridY, 199);  // Last valid grid Y
+    EXPECT_EQ(gridX, 399);  // Right edge of grid
+    EXPECT_EQ(gridY, 0);    // Bottom of screen = bottom of room = gridY=0
 }
 
 TEST_F(CoordinateMapperTest, ScreenToGrid_OutOfBounds_Left) {
@@ -114,23 +116,23 @@ TEST_F(CoordinateMapperTest, ScreenToGrid_Clamping) {
 // ============================================================================
 
 TEST_F(CoordinateMapperTest, GridToFramebuffer_Origin) {
-    // Grid origin (0, 0) should map to viewport top-left
-    // Grid Y=0 is top, so fbY should be high (viewportTop)
+    // Grid origin (0, 0) should map to viewport bottom-left
+    // Grid Y=0 is bottom, so fbY should be low (viewportBottom)
     float fbX, fbY;
     mapper.gridToFramebuffer(0, 0, fbX, fbY);
 
     EXPECT_FLOAT_EQ(fbX, 40.0f);   // viewportLeft
-    EXPECT_FLOAT_EQ(fbY, 1340.0f);  // viewportTop (top of viewport in Y-up coords)
+    EXPECT_FLOAT_EQ(fbY, 100.0f);  // viewportBottom (bottom of viewport in Y-up coords)
 }
 
 TEST_F(CoordinateMapperTest, GridToFramebuffer_MaxCorner) {
-    // Grid max corner (399, 199) should map to viewport bottom-right
-    // Grid Y=199 is bottom, so fbY should be low (viewportBottom)
+    // Grid max corner (399, 199) should map to viewport top-right
+    // Grid Y=199 is top, so fbY should be high (viewportTop)
     float fbX, fbY;
     mapper.gridToFramebuffer(399, 199, fbX, fbY);
 
     EXPECT_NEAR(fbX, 2520.0f, 10.0f);  // viewportRight (±10 pixel tolerance)
-    EXPECT_NEAR(fbY, 100.0f, 10.0f);   // viewportBottom (bottom of viewport in Y-up coords)
+    EXPECT_NEAR(fbY, 1340.0f, 10.0f);  // viewportTop (top of viewport in Y-up coords)
 }
 
 TEST_F(CoordinateMapperTest, GridToFramebuffer_Center) {
