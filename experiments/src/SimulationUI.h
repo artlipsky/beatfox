@@ -2,12 +2,14 @@
 
 #include <imgui.h>
 #include <memory>
+#include <functional>
 
 // Forward declarations
 class WaveSimulation;
 class AudioOutput;
 class CoordinateMapper;
 class AudioSample;
+class SimulationEngine;
 
 /*
  * SimulationUI - Presentation layer for acoustic simulation
@@ -47,6 +49,7 @@ public:
      * @param loadedSample Reference to loadedSample shared_ptr
      */
     SimulationUI(
+        SimulationEngine* engine,
         WaveSimulation* sim,
         AudioOutput* audio,
         CoordinateMapper* mapper,
@@ -106,6 +109,7 @@ public:
 
 private:
     // References to simulation components (not owned)
+    SimulationEngine* simulationEngine;
     WaveSimulation* simulation;
     AudioOutput* audioOutput;
     CoordinateMapper* coordinateMapper;

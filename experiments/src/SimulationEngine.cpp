@@ -29,6 +29,7 @@ SimulationEngine::SimulationEngine(Application& app)
     , impulseRadius(2)       // 2 pixels × 8.6mm = 17.2mm ≈ 2cm spread
     , gridWidth(581)   // 5m / 0.0086m = 581 pixels (SMALL ROOM + FULL AUDIO: 20 kHz support!)
     , gridHeight(291)  // 2.5m / 0.0086m = 291 pixels
+    , currentGridSize(GridSize::SMALL)  // Start with small grid
     , lastFrameTime(0.0)
     , simulationTimeBudget(0.014)  // 14ms budget for simulation (leaves 2.7ms for rendering at 60 FPS)
 {
@@ -140,7 +141,7 @@ bool SimulationEngine::initializeSubsystems() {
 
     // Initialize UI
     simulationUI = std::make_unique<SimulationUI>(
-        simulation.get(), audioOutput.get(), coordinateMapper.get(),
+        this, simulation.get(), audioOutput.get(), coordinateMapper.get(),
         showHelp, timeScale, obstacleMode, obstacleRadius,
         listenerMode, sourceMode, selectedPreset, sourceVolumeDb, sourceLoop, loadedSample,
         impulsePressure, impulseRadius
@@ -264,4 +265,113 @@ void SimulationEngine::render() {
     // Render ImGui
     ImGui::Render();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+}
+
+void SimulationEngine::getGridDimensions(GridSize size, int& width, int& height) {
+    // All presets maintain dx = 8.6mm = 0.0086m for consistent acoustic frequency support
+    // Calculations: width_m / 0.0086, height_m / 0.0086
+    switch (size) {
+        case GridSize::SMALL:
+            width = 581;    // 5m × 0.0086 = 581 pixels
+            height = 291;   // 2.5m × 0.0086 = 291 pixels
+            break;
+        case GridSize::MEDIUM:
+            width = 698;    // 6m × 0.0086 = 698 pixels
+            height = 465;   // 4m × 0.0086 = 465 pixels
+            break;
+        case GridSize::LARGE:
+            width = 930;    // 8m × 0.0086 = 930 pixels
+            height = 698;   // 6m × 0.0086 = 698 pixels
+            break;
+        case GridSize::XLARGE:
+            width = 1163;   // 10m × 0.0086 = 1163 pixels
+            height = 930;   // 8m × 0.0086 = 930 pixels
+            break;
+    }
+}
+
+void SimulationEngine::resizeSimulation(GridSize newSize) {
+    std::cout << "\n=== Resizing Simulation ===" << std::endl;
+
+    // Get new grid dimensions
+    int newWidth, newHeight;
+    getGridDimensions(newSize, newWidth, newHeight);
+
+    std::cout << "Old grid: " << gridWidth << " × " << gridHeight << " pixels" << std::endl;
+    std::cout << "New grid: " << newWidth << " × " << newHeight << " pixels" << std::endl;
+
+    // Calculate listener position ratio for scaling
+    int oldListenerX, oldListenerY;
+    simulation->getListenerPosition(oldListenerX, oldListenerY);
+    float listenerRatioX = static_cast<float>(oldListenerX) / gridWidth;
+    float listenerRatioY = static_cast<float>(oldListenerY) / gridHeight;
+    bool listenerWasEnabled = simulation->hasListener();
+
+    // Update grid dimensions
+    gridWidth = newWidth;
+    gridHeight = newHeight;
+    currentGridSize = newSize;
+
+    // Recreate simulation with new dimensions
+    simulation.reset();
+    simulation = std::make_unique<WaveSimulation>(gridWidth, gridHeight);
+
+    // Restore listener position (scaled proportionally)
+    int newListenerX = static_cast<int>(listenerRatioX * gridWidth);
+    int newListenerY = static_cast<int>(listenerRatioY * gridHeight);
+    simulation->setListenerPosition(newListenerX, newListenerY);
+    simulation->setListenerEnabled(listenerWasEnabled);
+
+    // Recreate renderer with new grid dimensions
+    GLFWwindow* window = application.getWindow();
+    renderer.reset();
+    renderer = std::make_unique<Renderer>(windowWidth, windowHeight);
+    if (!renderer->initialize()) {
+        std::cerr << "Failed to reinitialize renderer" << std::endl;
+        return;
+    }
+
+    // Update coordinate mapper with new grid dimensions
+    int winWidth, winHeight;
+    glfwGetWindowSize(window, &winWidth, &winHeight);
+
+    float vLeft, vRight, vBottom, vTop;
+    renderer->getRoomViewport(vLeft, vRight, vBottom, vTop);
+
+    coordinateMapper->updateViewport(
+        winWidth, winHeight,
+        windowWidth, windowHeight,
+        gridWidth, gridHeight,
+        vLeft, vRight,
+        vBottom, vTop
+    );
+
+    // Recreate UI and input handler with new references
+    simulationUI.reset();
+    simulationUI = std::make_unique<SimulationUI>(
+        this, simulation.get(), audioOutput.get(), coordinateMapper.get(),
+        showHelp, timeScale, obstacleMode, obstacleRadius,
+        listenerMode, sourceMode, selectedPreset, sourceVolumeDb, sourceLoop, loadedSample,
+        impulsePressure, impulseRadius
+    );
+
+    inputHandler.reset();
+    inputHandler = std::make_unique<InputHandler>(
+        simulation.get(), audioOutput.get(), coordinateMapper.get(), renderer.get(),
+        showHelp, timeScale, obstacleMode, obstacleRadius,
+        listenerMode, draggingListener, sourceMode, selectedPreset,
+        sourceVolumeDb, sourceLoop, loadedSample,
+        impulsePressure, impulseRadius,
+        mousePressed, lastMouseX, lastMouseY, windowWidth, windowHeight
+    );
+
+    // Reregister input callbacks
+    glfwSetWindowUserPointer(window, inputHandler.get());
+
+    std::cout << "New room size: " << simulation->getPhysicalWidth() << "m × "
+              << simulation->getPhysicalHeight() << "m" << std::endl;
+    std::cout << "Listener repositioned to: (" << newListenerX << ", " << newListenerY << ")" << std::endl;
+    std::cout << "Memory: ~" << (gridWidth * gridHeight * 3 * 4 / 1024 / 1024) << " MB for pressure fields" << std::endl;
+    std::cout << "Note: Obstacles and audio sources cleared during resize" << std::endl;
+    std::cout << "==========================" << std::endl;
 }

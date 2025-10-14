@@ -1,4 +1,5 @@
 #include "SimulationUI.h"
+#include "SimulationEngine.h"
 #include "WaveSimulation.h"
 #include "AudioOutput.h"
 #include "CoordinateMapper.h"
@@ -10,6 +11,7 @@
 #include <iostream>
 
 SimulationUI::SimulationUI(
+    SimulationEngine* engine,
     WaveSimulation* sim,
     AudioOutput* audio,
     CoordinateMapper* mapper,
@@ -26,7 +28,8 @@ SimulationUI::SimulationUI(
     float& impulsePressure,
     int& impulseRadius
 )
-    : simulation(sim)
+    : simulationEngine(engine)
+    , simulation(sim)
     , audioOutput(audio)
     , coordinateMapper(mapper)
     , showHelp(showHelp)
@@ -223,6 +226,63 @@ void SimulationUI::renderControlsPanel() {
 
         // Show current preset info
         ImGui::TextDisabled("%s", currentPreset.getDescription().c_str());
+    }
+
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Spacing();
+
+    // Grid Size / Room Scale Section
+    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.6f, 0.9f, 1.0f, 1.0f));
+    ImGui::Text("Room Size (Grid Resolution):");
+    ImGui::PopStyleColor();
+
+    if (simulationEngine) {
+        auto currentSize = simulationEngine->getCurrentGridSize();
+
+        // Small (5m × 2.5m)
+        bool isSmall = (currentSize == SimulationEngine::GridSize::SMALL);
+        if (ImGui::RadioButton("Small (5m × 2.5m)", isSmall)) {
+            simulationEngine->resizeSimulation(SimulationEngine::GridSize::SMALL);
+        }
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Small room: 5m × 2.5m (581×291 px)\nMemory: ~2 MB\nGood for studios and compact spaces");
+        }
+
+        // Medium (6m × 4m)
+        bool isMedium = (currentSize == SimulationEngine::GridSize::MEDIUM);
+        if (ImGui::RadioButton("Medium (6m × 4m)", isMedium)) {
+            simulationEngine->resizeSimulation(SimulationEngine::GridSize::MEDIUM);
+        }
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Medium room: 6m × 4m (698×465 px)\nMemory: ~4 MB\nGood for medium apartments");
+        }
+
+        // Large (8m × 6m)
+        bool isLarge = (currentSize == SimulationEngine::GridSize::LARGE);
+        if (ImGui::RadioButton("Large (8m × 6m)", isLarge)) {
+            simulationEngine->resizeSimulation(SimulationEngine::GridSize::LARGE);
+        }
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Large room: 8m × 6m (930×698 px)\nMemory: ~8 MB\nGood for large apartments");
+        }
+
+        // XLarge (10m × 8m)
+        bool isXLarge = (currentSize == SimulationEngine::GridSize::XLARGE);
+        if (ImGui::RadioButton("X-Large (10m × 8m)", isXLarge)) {
+            simulationEngine->resizeSimulation(SimulationEngine::GridSize::XLARGE);
+        }
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Extra large: 10m × 8m (1163×930 px)\nMemory: ~13 MB\nGood for very large spaces");
+        }
+
+        // Show current grid info
+        ImGui::TextDisabled("Grid: %d × %d px, %.1f × %.1f m",
+                          simulation ? simulation->getWidth() : 0,
+                          simulation ? simulation->getHeight() : 0,
+                          simulation ? simulation->getPhysicalWidth() : 0.0f,
+                          simulation ? simulation->getPhysicalHeight() : 0.0f);
+        ImGui::TextDisabled("Scale: 1 pixel = 8.6 mm (constant)");
     }
 
     ImGui::Spacing();

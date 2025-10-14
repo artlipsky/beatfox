@@ -21,6 +21,17 @@
  */
 class SimulationEngine {
 public:
+    /**
+     * Grid size presets for adaptive resolution
+     * All presets maintain dx = 8.6mm for consistent acoustic frequency support
+     */
+    enum class GridSize {
+        SMALL,    // 5m × 2.5m (581×291) - Original, good for studios
+        MEDIUM,   // 6m × 4m (698×465) - Medium apartments
+        LARGE,    // 8m × 6m (930×698) - Large apartments
+        XLARGE    // 10m × 8m (1163×930) - Very large spaces
+    };
+
     // Constructor takes Application reference for window/context access
     explicit SimulationEngine(Application& app);
 
@@ -32,6 +43,22 @@ public:
 
     // Run the main game loop (blocks until window closes)
     void run();
+
+    /**
+     * Resize simulation grid to new dimensions
+     *
+     * Recreates simulation with new grid size while preserving:
+     * - Listener position (scaled proportionally)
+     * - Time scale and other settings
+     *
+     * Note: Obstacles and audio sources are cleared during resize
+     *
+     * @param newSize Grid size preset
+     */
+    void resizeSimulation(GridSize newSize);
+
+    // Get current grid size
+    GridSize getCurrentGridSize() const { return currentGridSize; }
 
     // Delete copy constructor and assignment operator
     SimulationEngine(const SimulationEngine&) = delete;
@@ -79,9 +106,10 @@ private:
     float impulsePressure;  // Pressure amplitude in Pa (default: 5.0 Pa = hand clap)
     int impulseRadius;  // Spatial spread in pixels (default: 2 pixels = 5 cm)
 
-    // Grid dimensions (const after initialization)
+    // Grid dimensions and current size preset
     int gridWidth;
     int gridHeight;
+    GridSize currentGridSize;
 
     // Performance tracking for adaptive frame skipping
     double lastFrameTime;
@@ -94,6 +122,9 @@ private:
     // Game loop helpers
     void update();
     void render();
+
+    // Grid size helper
+    static void getGridDimensions(GridSize size, int& width, int& height);
 };
 
 #endif // SIMULATION_ENGINE_H
