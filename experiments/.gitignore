@@ -40,3 +40,6 @@ test_results.xml
 # macOS
 .DS_Store
 *.dSYM/
+
+# ImGui configuration
+imgui.ini
