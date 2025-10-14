@@ -126,6 +126,8 @@ private:
     std::string lastError;              // Last error message
 
     // Pressure scaling constants
-    static constexpr float REFERENCE_PRESSURE = 20.0f;  // Reference pressure for normalization (Pa)
-    static constexpr float MAX_AMPLITUDE = 0.95f;       // Maximum audio amplitude (prevent clipping)
+    // OLD: 20 Pa was causing clipping - simulation produces higher pressures
+    // NEW: 100 Pa reference gives more headroom, prevents overload distortion
+    static constexpr float REFERENCE_PRESSURE = 100.0f;  // Reference pressure for normalization (Pa)
+    static constexpr float MAX_AMPLITUDE = 0.95f;        // Maximum audio amplitude (prevent clipping)
 };

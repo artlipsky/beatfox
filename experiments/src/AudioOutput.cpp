@@ -19,8 +19,15 @@ AudioOutput::AudioOutput()
     , previousPressure(0.0f)
     , simulationFrameRate(60.0f)  // Assume 60 FPS simulation
 {
-    // Allocate ring buffer (1 second worth of samples)
-    audioBuffer.resize(sampleRate, 0.0f);
+    // Allocate ring buffer (100ms worth of samples for low latency)
+    // 1 second = 48000 samples was causing ~500ms average delay
+    // 100ms = 4800 samples gives ~50ms average delay (much better!)
+    int bufferSizeMs = 100;
+    int bufferSize = (sampleRate * bufferSizeMs) / 1000;
+    audioBuffer.resize(bufferSize, 0.0f);
+
+    std::cout << "AudioOutput: Ring buffer size: " << bufferSize << " samples ("
+              << bufferSizeMs << "ms at " << sampleRate << " Hz)" << std::endl;
 }
 
 AudioOutput::~AudioOutput() {
@@ -35,7 +42,14 @@ AudioOutput::~AudioOutput() {
 
 bool AudioOutput::initialize(int sampleRate) {
     this->sampleRate = sampleRate;
-    audioBuffer.resize(sampleRate, 0.0f);
+
+    // Allocate ring buffer (100ms for low latency)
+    int bufferSizeMs = 100;
+    int bufferSize = (sampleRate * bufferSizeMs) / 1000;
+    audioBuffer.resize(bufferSize, 0.0f);
+
+    std::cout << "AudioOutput: Ring buffer size: " << bufferSize << " samples ("
+              << bufferSizeMs << "ms at " << sampleRate << " Hz)" << std::endl;
 
     // Allocate device
     device = new ma_device();
