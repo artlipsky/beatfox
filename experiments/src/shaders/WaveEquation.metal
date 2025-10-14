@@ -42,6 +42,11 @@ struct MultiStepParams {
     int listenerY;             // Listener Y coordinate
     int subStepIdx;            // Current sub-step index (for listener sampling)
     int numAudioSources;       // Number of active audio sources
+    // ACTIVE REGION OPTIMIZATION: Map local threads to global grid
+    int offsetX;               // X offset of active region in global grid
+    int offsetY;               // Y offset of active region in global grid
+    int activeWidth;           // Width of active region
+    int activeHeight;          // Height of active region
 };
 
 /*
@@ -203,11 +208,22 @@ kernel void multiStepWaveEquation(
     device const AudioSourceData* audioSources [[buffer(4)]], // Audio source data for this sub-step
     uint2 gid                              [[thread_position_in_grid]])
 {
-    // Thread position = grid cell coordinates
-    const int x = gid.x;
-    const int y = gid.y;
+    // ACTIVE REGION OPTIMIZATION: Map local thread position to global grid coordinates
+    // Local coordinates (gid.x, gid.y) are in [0, activeWidth) × [0, activeHeight)
+    // Global coordinates (x, y) are in [0, width) × [0, height)
+    const int localX = gid.x;
+    const int localY = gid.y;
 
-    // Boundary check
+    // Boundary check for active region
+    if (localX >= params.activeWidth || localY >= params.activeHeight) {
+        return;
+    }
+
+    // Map to global grid coordinates
+    const int x = localX + params.offsetX;
+    const int y = localY + params.offsetY;
+
+    // Boundary check for full grid (safety check)
     if (x >= params.width || y >= params.height) {
         return;
     }

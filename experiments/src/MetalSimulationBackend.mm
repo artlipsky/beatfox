@@ -37,6 +37,11 @@ struct MultiStepParams {
     int listenerY;
     int subStepIdx;
     int numAudioSources;
+    // NEW: Active region optimization
+    int offsetX;        // X offset of active region
+    int offsetY;        // Y offset of active region
+    int activeWidth;    // Width of active region
+    int activeHeight;   // Height of active region
 };
 
 /*
@@ -416,13 +421,40 @@ void MetalSimulationBackend::executeFrame(
     int numSubSteps,
     float c2_dt2_dx2,
     float damping,
-    float wallReflection)
+    float wallReflection,
+    int activeMinX,
+    int activeMinY,
+    int activeMaxX,
+    int activeMaxY)
 {
     if (!isAvailable()) {
         return;
     }
 
     pImpl->lastStepStart = std::chrono::high_resolution_clock::now();
+
+    // Calculate active region dimensions
+    // If no active region specified (defaults), use full grid
+    if (activeMaxX < 0) activeMaxX = pImpl->width - 1;
+    if (activeMaxY < 0) activeMaxY = pImpl->height - 1;
+
+    int offsetX = activeMinX;
+    int offsetY = activeMinY;
+    int activeWidth = activeMaxX - activeMinX + 1;
+    int activeHeight = activeMaxY - activeMinY + 1;
+
+    // Clamp to grid bounds
+    offsetX = std::max(0, std::min(offsetX, pImpl->width - 1));
+    offsetY = std::max(0, std::min(offsetY, pImpl->height - 1));
+    activeWidth = std::max(1, std::min(activeWidth, pImpl->width - offsetX));
+    activeHeight = std::max(1, std::min(activeHeight, pImpl->height - offsetY));
+
+    // Log optimization stats (only if active region is smaller than full grid)
+    if (activeWidth * activeHeight < pImpl->gridSize) {
+        float coveragePercent = 100.0f * (activeWidth * activeHeight) / float(pImpl->gridSize);
+        std::cout << "MetalBackend: Active region optimization - computing "
+                  << activeWidth << "x" << activeHeight << " (" << coveragePercent << "% of grid)" << std::endl;
+    }
 
     // Resize output vectors
     listenerSamples.resize(numSubSteps, 0.0f);
@@ -481,6 +513,11 @@ void MetalSimulationBackend::executeFrame(
         params->listenerY = listenerY;
         params->subStepIdx = step;
         params->numAudioSources = numAudioSources;
+        // Active region optimization fields
+        params->offsetX = offsetX;
+        params->offsetY = offsetY;
+        params->activeWidth = activeWidth;
+        params->activeHeight = activeHeight;
 
         // Rotate buffer indices for next iteration
         int temp = prevIdx;
@@ -516,9 +553,10 @@ void MetalSimulationBackend::executeFrame(
 
         // Calculate thread groups (16x16 threads per group is optimal for M-series GPUs)
         MTLSize threadgroupSize = MTLSizeMake(16, 16, 1);
+        // OPTIMIZED: Dispatch only threads for active region, not full grid!
         MTLSize gridSize = MTLSizeMake(
-            (pImpl->width + threadgroupSize.width - 1) / threadgroupSize.width * threadgroupSize.width,
-            (pImpl->height + threadgroupSize.height - 1) / threadgroupSize.height * threadgroupSize.height,
+            (activeWidth + threadgroupSize.width - 1) / threadgroupSize.width * threadgroupSize.width,
+            (activeHeight + threadgroupSize.height - 1) / threadgroupSize.height * threadgroupSize.height,
             1
         );
 

@@ -113,6 +113,10 @@ void WaveSimulation::update(float dt_frame) {
     int numSteps = static_cast<int>(std::ceil(dt_frame / dt_max));
     float dt = dt_frame / numSteps;
 
+    // Grow active region based on wave propagation
+    // This expands the region where we need to compute wave updates
+    growActiveRegionForFrame(dt_frame);
+
     // ========================================================================
     // OPTIMIZED GPU PATH: Execute all sub-steps on GPU without CPU round-trip
     // ========================================================================
@@ -169,7 +173,12 @@ void WaveSimulation::update(float dt_frame) {
             numSteps,             // Number of sub-steps
             c2_dt2_dx2,           // CFL coefficient
             damping,              // Air absorption
-            wallReflection        // Wall reflection
+            wallReflection,       // Wall reflection
+            // ACTIVE REGION OPTIMIZATION: Only compute where waves are active!
+            activeRegion.hasActivity ? activeRegion.minX : 0,
+            activeRegion.hasActivity ? activeRegion.minY : 0,
+            activeRegion.hasActivity ? activeRegion.maxX : width - 1,
+            activeRegion.hasActivity ? activeRegion.maxY : height - 1
         );
 
         // Update simulation state with GPU results
@@ -394,6 +403,10 @@ void WaveSimulation::addPressureSource(int x, int y, float pressureAmplitude, in
         return;
     }
 
+    // Expand active region to include this impulse
+    // Start with radius, will grow as waves propagate
+    expandActiveRegion(x, y, radius * 2);  // 2x for initial wave spread
+
     // Validate pressure amplitude (reasonable physical range)
     // Max 1000 Pa ≈ 134 dB SPL (threshold of pain is ~120 dB)
     if (pressureAmplitude <= 0.0f || pressureAmplitude > 1000.0f) {
@@ -447,6 +460,9 @@ void WaveSimulation::clear() {
     std::fill(pressure.begin(), pressure.end(), 0.0f);
     std::fill(pressurePrev.begin(), pressurePrev.end(), 0.0f);
     std::fill(pressureNext.begin(), pressureNext.end(), 0.0f);
+
+    // Clear active region when simulation is cleared
+    activeRegion.clear();
 }
 
 void WaveSimulation::addObstacle(int x, int y, int radius) {
@@ -651,6 +667,12 @@ size_t WaveSimulation::addAudioSource(std::unique_ptr<AudioSource> source) {
         return SIZE_MAX;  // Invalid ID
     }
 
+    // Expand active region to include this audio source
+    // Use a reasonable radius for initial expansion
+    int sourceX = source->getX();
+    int sourceY = source->getY();
+    expandActiveRegion(sourceX, sourceY, 10);  // Initial 10-pixel radius
+
     size_t id = audioSources.size();
     audioSources.push_back(std::move(source));
 
@@ -700,4 +722,65 @@ void WaveSimulation::setGPUEnabled(bool enabled) {
     } else {
         std::cout << "WaveSimulation: GPU acceleration DISABLED (CPU fallback)" << std::endl;
     }
+}
+
+// ============================================================================
+// ACTIVE REGION OPTIMIZATION
+// ============================================================================
+
+void WaveSimulation::expandActiveRegion(int centerX, int centerY, int radius) {
+    /*
+     * Expand active region to include a circular area of activity
+     *
+     * Called when:
+     * - Adding an impulse source
+     * - Placing an audio source
+     * - Any localized event that creates waves
+     *
+     * @param centerX X coordinate of activity center
+     * @param centerY Y coordinate of activity center
+     * @param radius Radius of activity in pixels
+     */
+
+    if (!activeRegion.hasActivity) {
+        // First activity - initialize region
+        activeRegion.minX = std::max(0, centerX - radius);
+        activeRegion.maxX = std::min(width - 1, centerX + radius);
+        activeRegion.minY = std::max(0, centerY - radius);
+        activeRegion.maxY = std::min(height - 1, centerY + radius);
+        activeRegion.hasActivity = true;
+    } else {
+        // Expand existing region
+        activeRegion.minX = std::max(0, std::min(activeRegion.minX, centerX - radius));
+        activeRegion.maxX = std::min(width - 1, std::max(activeRegion.maxX, centerX + radius));
+        activeRegion.minY = std::max(0, std::min(activeRegion.minY, centerY - radius));
+        activeRegion.maxY = std::min(height - 1, std::max(activeRegion.maxY, centerY + radius));
+    }
+}
+
+void WaveSimulation::growActiveRegionForFrame(float dt) {
+    /*
+     * Grow active region based on wave propagation distance
+     *
+     * Waves travel at soundSpeed (m/s), so expand region by:
+     * expansion = soundSpeed * dt / dx (in pixels)
+     *
+     * Add safety margin of 2x to ensure we don't miss wave fronts
+     *
+     * @param dt Time step for this frame (seconds)
+     */
+
+    if (!activeRegion.hasActivity) {
+        return;  // No activity to grow
+    }
+
+    // Calculate how far waves can travel in one frame
+    float propagationDistance = soundSpeed * dt / dx;  // in pixels
+    int expansion = static_cast<int>(std::ceil(propagationDistance * 2.0f));  // 2x safety factor
+
+    // Expand region in all directions
+    activeRegion.minX = std::max(0, activeRegion.minX - expansion);
+    activeRegion.maxX = std::min(width - 1, activeRegion.maxX + expansion);
+    activeRegion.minY = std::max(0, activeRegion.minY - expansion);
+    activeRegion.maxY = std::min(height - 1, activeRegion.maxY + expansion);
 }
