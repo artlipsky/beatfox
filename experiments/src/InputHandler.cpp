@@ -62,6 +62,10 @@ InputHandler::InputHandler(
 {
 }
 
+void InputHandler::updateSimulationPointer(WaveSimulation* newSim) {
+    simulation = newSim;
+}
+
 bool InputHandler::screenToGrid(double screenX, double screenY, int& gridX, int& gridY) {
     if (!coordinateMapper) return false;
     return coordinateMapper->screenToGrid(screenX, screenY, gridX, gridY);

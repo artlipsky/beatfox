@@ -47,6 +47,10 @@ SimulationUI::SimulationUI(
 {
 }
 
+void SimulationUI::updateSimulationPointer(WaveSimulation* newSim) {
+    simulation = newSim;
+}
+
 void SimulationUI::render() {
     renderListenerMarker();
     renderAudioSourceMarkers();

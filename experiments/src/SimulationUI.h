@@ -107,6 +107,16 @@ public:
      */
     void renderHelpButton();
 
+    /*
+     * Update simulation pointer after resize
+     *
+     * Called by SimulationEngine::resizeSimulation() to update
+     * the internal simulation pointer without destroying the UI object.
+     *
+     * @param newSim Pointer to the new WaveSimulation instance
+     */
+    void updateSimulationPointer(WaveSimulation* newSim);
+
 private:
     // References to simulation components (not owned)
     SimulationEngine* simulationEngine;

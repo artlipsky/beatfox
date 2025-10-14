@@ -352,27 +352,11 @@ void SimulationEngine::resizeSimulation(GridSize newSize) {
         vBottom, vTop
     );
 
-    // Recreate UI and input handler with new references
-    simulationUI.reset();
-    simulationUI = std::make_unique<SimulationUI>(
-        this, simulation.get(), audioOutput.get(), coordinateMapper.get(),
-        showHelp, timeScale, obstacleMode, obstacleRadius,
-        listenerMode, sourceMode, selectedPreset, sourceVolumeDb, sourceLoop, loadedSample,
-        impulsePressure, impulseRadius
-    );
-
-    inputHandler.reset();
-    inputHandler = std::make_unique<InputHandler>(
-        simulation.get(), audioOutput.get(), coordinateMapper.get(), renderer.get(),
-        showHelp, timeScale, obstacleMode, obstacleRadius,
-        listenerMode, draggingListener, sourceMode, selectedPreset,
-        sourceVolumeDb, sourceLoop, loadedSample,
-        impulsePressure, impulseRadius,
-        mousePressed, lastMouseX, lastMouseY, windowWidth, windowHeight
-    );
-
-    // Reregister input callbacks
-    glfwSetWindowUserPointer(window, inputHandler.get());
+    // Update UI and input handler with new simulation pointer
+    // CRITICAL: Don't recreate these objects while they may be in use!
+    // Instead, just update their internal simulation pointers
+    simulationUI->updateSimulationPointer(simulation.get());
+    inputHandler->updateSimulationPointer(simulation.get());
 
     std::cout << "New room size: " << simulation->getPhysicalWidth() << "m × "
               << simulation->getPhysicalHeight() << "m" << std::endl;
