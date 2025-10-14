@@ -25,8 +25,8 @@ SimulationEngine::SimulationEngine(Application& app)
     , sourceVolumeDb(0.0f)
     , sourceLoop(true)
     , loadedSample(nullptr)
-    , gridWidth(2000)   // 20m / 0.01m = 2000 pixels (HIGH RESOLUTION!)
-    , gridHeight(1000)  // 10m / 0.01m = 1000 pixels
+    , gridWidth(400)   // 20m / 0.05m = 400 pixels
+    , gridHeight(200)  // 10m / 0.05m = 200 pixels
 {
 }
 
@@ -90,8 +90,8 @@ bool SimulationEngine::initializeSubsystems() {
 
     // Create simulation
     // Room: 10m (height) x 20m (width)
-    // HIGH RESOLUTION: 1 pixel = 1 cm = 0.01 m (5x finer than before!)
-    // Max frequency: f_max = c / (2*dx) = 343 / 0.02 = 17.15 kHz
+    // Scale: 1 pixel = 5 cm = 0.05 m
+    // Max frequency: f_max = c / (2*dx) = 343 / 0.10 = 3.43 kHz
     simulation = std::make_unique<WaveSimulation>(gridWidth, gridHeight);
 
     // Initialize audio output
@@ -163,9 +163,9 @@ void SimulationEngine::printInitializationInfo() {
     std::cout << "\nPhysical dimensions:" << std::endl;
     std::cout << "  Window: " << winWidth << " x " << winHeight << " (window coords)" << std::endl;
     std::cout << "  Framebuffer: " << windowWidth << " x " << windowHeight << " (framebuffer coords)" << std::endl;
-    std::cout << "  Grid: " << gridWidth << " x " << gridHeight << " pixels (W x H) [HIGH RESOLUTION]" << std::endl;
-    std::cout << "  Scale: 1 pixel = 1.0 cm = 10 mm" << std::endl;
-    std::cout << "  Max frequency: ~17 kHz (Nyquist limit)" << std::endl;
+    std::cout << "  Grid: " << gridWidth << " x " << gridHeight << " pixels (W x H) [OPTIMIZED]" << std::endl;
+    std::cout << "  Scale: 1 pixel = 5.0 cm = 50 mm" << std::endl;
+    std::cout << "  Max frequency: ~3.4 kHz (Nyquist limit)" << std::endl;
     std::cout << "  Memory: ~" << (gridWidth * gridHeight * 3 * 4 / 1024 / 1024) << " MB for pressure fields" << std::endl;
     std::cout << "  Room size: " << simulation->getPhysicalWidth() << " m x "
               << simulation->getPhysicalHeight() << " m (W x H)" << std::endl;
