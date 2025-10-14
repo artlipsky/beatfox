@@ -335,7 +335,7 @@ void InputHandler::handleKey(GLFWwindow* window, int key, int scancode, int acti
                 std::cout << std::endl;
                 break;
             case GLFW_KEY_MINUS:  // Minus key (slow down)
-                timeScale = std::max(0.01f, timeScale / 1.5f);
+                timeScale = std::max(0.001f, timeScale / 1.5f);
                 std::cout << "Time scale: " << timeScale << "x";
                 if (timeScale < 1.0f) {
                     std::cout << " (" << (1.0f / timeScale) << "x slower)";
@@ -364,7 +364,7 @@ void InputHandler::handleKey(GLFWwindow* window, int key, int scancode, int acti
                     std::cout << "Obstacle radius: " << obstacleRadius << " pixels" << std::endl;
                 } else {
                     // [ for time slow down
-                    timeScale = std::max(0.01f, timeScale / 1.5f);
+                    timeScale = std::max(0.001f, timeScale / 1.5f);
                     std::cout << "Time scale: " << timeScale << "x";
                     if (timeScale < 1.0f) {
                         std::cout << " (" << (1.0f / timeScale) << "x slower)";
@@ -379,6 +379,10 @@ void InputHandler::handleKey(GLFWwindow* window, int key, int scancode, int acti
             case GLFW_KEY_1:  // 20x slower
                 timeScale = 0.05f;
                 std::cout << "Time scale: 0.05x (20x slower)" << std::endl;
+                break;
+            case GLFW_KEY_2:  // 1000x slower
+                timeScale = 0.001f;
+                std::cout << "Time scale: 0.001x (1000x slower)" << std::endl;
                 break;
             case GLFW_KEY_O:  // Toggle obstacle mode
                 obstacleMode = !obstacleMode;

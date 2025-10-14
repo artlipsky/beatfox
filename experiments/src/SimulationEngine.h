@@ -58,7 +58,7 @@ private:
     bool showHelp;
 
     // Simulation parameters
-    float timeScale;  // Time scale: 0.01 = 100x slower (for audible sound), 1.0 = real-time
+    float timeScale;  // Time scale: 0.001-1.0 (1000x slower to real-time), default 0.001 for visualization
 
     // Obstacle mode
     bool obstacleMode;  // Toggle with 'O' key

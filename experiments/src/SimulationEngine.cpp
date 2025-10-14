@@ -15,7 +15,7 @@ SimulationEngine::SimulationEngine(Application& app)
     , lastMouseX(0.0)
     , lastMouseY(0.0)
     , showHelp(true)
-    , timeScale(0.01f)  // 100x slower for audible sound
+    , timeScale(0.001f)  // 1000x slower for clear visualization
     , obstacleMode(false)
     , obstacleRadius(5)
     , listenerMode(false)
@@ -193,13 +193,13 @@ void SimulationEngine::printInitializationInfo() {
     std::cout << "  L: Load SVG room layout" << std::endl;
     std::cout << "  SPACE: Clear waves" << std::endl;
     std::cout << "  +/- or [/]: Adjust time scale (slow motion)" << std::endl;
-    std::cout << "  1: 20x slower | 0: max speed (0.25x)" << std::endl;
+    std::cout << "  2: 1000x slower | 1: 20x slower | 0: max speed (0.25x)" << std::endl;
     std::cout << "  UP/DOWN: Adjust sound speed" << std::endl;
     std::cout << "  LEFT/RIGHT: Adjust air absorption" << std::endl;
     std::cout << "  H: Toggle help overlay" << std::endl;
     std::cout << "  ESC: Exit" << std::endl;
     std::cout << "=========================================\n" << std::endl;
-    std::cout << "Starting at 100x slower for audible sound (press '0' for max speed: 0.25x)\n" << std::endl;
+    std::cout << "Starting at 1000x slower for clear visualization (press '1' for 20x, '0' for max speed)\n" << std::endl;
 }
 
 void SimulationEngine::run() {
