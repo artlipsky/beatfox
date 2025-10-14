@@ -29,6 +29,10 @@ private:
     int windowWidth;
     int windowHeight;
 
+    // Grid dimensions (for aspect ratio calculation)
+    int gridWidth = 0;
+    int gridHeight = 0;
+
     // Room viewport with padding
     float padding = 40.0f;  // Padding in pixels around the room
     float roomViewportX, roomViewportY;      // Bottom-left corner

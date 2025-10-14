@@ -57,6 +57,13 @@ bool Renderer::initialize() {
 }
 
 void Renderer::setupBuffers(int gridWidth, int gridHeight) {
+    // Store grid dimensions for aspect ratio calculation
+    this->gridWidth = gridWidth;
+    this->gridHeight = gridHeight;
+
+    // Recalculate viewport with new aspect ratio
+    calculateRoomViewport();
+
     // Clean up old buffers if they exist
     if (VAO) glDeleteVertexArrays(1, &VAO);
     if (VBO) glDeleteBuffers(1, &VBO);
@@ -188,8 +195,10 @@ void Renderer::resize(int width, int height) {
 
 void Renderer::calculateRoomViewport() {
     // Calculate viewport to center the room with padding
-    // Room aspect ratio is 2:1 (20m x 10m)
-    float roomAspect = 2.0f;  // width / height
+    // Calculate aspect ratio dynamically based on grid dimensions
+    float roomAspect = (gridWidth > 0 && gridHeight > 0)
+        ? static_cast<float>(gridWidth) / static_cast<float>(gridHeight)
+        : 2.0f;  // Default fallback
 
     // Available space after padding
     float availableWidth = windowWidth - 2 * padding;
