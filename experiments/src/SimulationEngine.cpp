@@ -25,8 +25,8 @@ SimulationEngine::SimulationEngine(Application& app)
     , sourceVolumeDb(0.0f)
     , sourceLoop(true)
     , loadedSample(nullptr)
-    , gridWidth(1000)   // 5m / 0.005m = 1000 pixels (SMALL ROOM + HIGH RES: 34 kHz support!)
-    , gridHeight(500)  // 2.5m / 0.005m = 500 pixels
+    , gridWidth(581)   // 5m / 0.0086m = 581 pixels (SMALL ROOM + FULL AUDIO: 20 kHz support!)
+    , gridHeight(291)  // 2.5m / 0.0086m = 291 pixels
     , lastFrameTime(0.0)
     , simulationTimeBudget(0.014)  // 14ms budget for simulation (leaves 2.7ms for rendering at 60 FPS)
 {
@@ -90,10 +90,10 @@ bool SimulationEngine::initialize() {
 bool SimulationEngine::initializeSubsystems() {
     GLFWwindow* window = application.getWindow();
 
-    // Create simulation (SMALL ROOM, HIGH RESOLUTION)
+    // Create simulation (SMALL ROOM, FULL AUDIO RESOLUTION)
     // Room: 2.5m (height) x 5m (width)
-    // Scale: 1 pixel = 5 mm = 0.005 m
-    // Max frequency: f_max = c / (2*dx) = 343 / 0.01 = 34.3 kHz
+    // Scale: 1 pixel = 8.6 mm = 0.0086 m
+    // Max frequency: f_max = c / (2*dx) = 343 / 0.0172 = 19.94 kHz (full human hearing!)
     simulation = std::make_unique<WaveSimulation>(gridWidth, gridHeight);
 
     // Initialize audio output
@@ -165,9 +165,9 @@ void SimulationEngine::printInitializationInfo() {
     std::cout << "\nPhysical dimensions:" << std::endl;
     std::cout << "  Window: " << winWidth << " x " << winHeight << " (window coords)" << std::endl;
     std::cout << "  Framebuffer: " << windowWidth << " x " << windowHeight << " (framebuffer coords)" << std::endl;
-    std::cout << "  Grid: " << gridWidth << " x " << gridHeight << " pixels (W x H) [SMALL ROOM + HIGH RES]" << std::endl;
-    std::cout << "  Scale: 1 pixel = 5 mm = 0.5 cm" << std::endl;
-    std::cout << "  Max frequency: ~34 kHz (Nyquist limit - beyond human hearing!)" << std::endl;
+    std::cout << "  Grid: " << gridWidth << " x " << gridHeight << " pixels (W x H) [SMALL ROOM + FULL AUDIO]" << std::endl;
+    std::cout << "  Scale: 1 pixel = 8.6 mm = 0.86 cm" << std::endl;
+    std::cout << "  Max frequency: ~20 kHz (Nyquist limit - full human hearing!)" << std::endl;
     std::cout << "  Memory: ~" << (gridWidth * gridHeight * 3 * 4 / 1024 / 1024) << " MB for pressure fields" << std::endl;
     std::cout << "  Room size: " << simulation->getPhysicalWidth() << " m x "
               << simulation->getPhysicalHeight() << " m (W x H)" << std::endl;

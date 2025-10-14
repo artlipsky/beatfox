@@ -16,7 +16,7 @@ WaveSimulation::WaveSimulation(int width, int height)
       ,
       wallReflection(0.85f)  // Wall reflection coefficient (15% energy loss per reflection)
       ,
-      dx(0.005f)  // Spatial grid spacing: 1 pixel = 5 mm = 0.005 m (HIGH RES)
+      dx(0.0086f)  // Spatial grid spacing: 1 pixel = 8.6 mm = 0.0086 m (FULL AUDIO)
       ,
       currentPreset(DampingPreset::fromType(
           DampingPreset::Type::REALISTIC))  // Initialize with realistic preset
@@ -49,16 +49,16 @@ WaveSimulation::WaveSimulation(int width, int height)
     }
 
     /*
-     * PHYSICAL UNITS AND SCALE (SMALL ROOM + HIGH RESOLUTION):
+     * PHYSICAL UNITS AND SCALE (SMALL ROOM + FULL AUDIO RESOLUTION):
      * -----------------------------------------------
-     * Coordinate system: 1 pixel = 5 mm = 0.5 cm = 0.005 m
+     * Coordinate system: 1 pixel = 8.6 mm = 0.86 cm = 0.0086 m
      *
-     * For 1000x500 grid (W x H):
+     * For 581x291 grid (W x H):
      * - Physical room size: 5m x 2.5m (width x height)
      * - Aspect ratio: 2:1 (rectangular room)
-     * - Grid cells: 500,000 (25× more than previous 20,000!)
-     * - Max frequency: f_max = c/(2*dx) = 343/0.01 = 34.3 kHz (beyond human hearing!)
-     * - Memory: ~5.7 MB for 3 pressure fields
+     * - Grid cells: 169,071 (~8.5× more than 20,000 baseline)
+     * - Max frequency: f_max = c/(2*dx) = 343/0.0172 = 19.94 kHz (full human hearing!)
+     * - Memory: ~1.9 MB for 3 pressure fields
      *
      * Physical constants (air at 20°C, 1 atm):
      * - Speed of sound: c = 343 m/s
@@ -68,17 +68,19 @@ WaveSimulation::WaveSimulation(int width, int height)
      * The pressure field represents acoustic pressure p (Pa),
      * which is the deviation from atmospheric pressure P₀.
      *
-     * SMALL ROOM + HIGH RESOLUTION BENEFITS:
-     * - ULTRA-HIGH audio quality - supports ultrasonic frequencies
-     * - Perfect for detailed acoustic analysis
-     * - Engineering-grade spatial resolution (5mm detail)
-     * - Enables visualization of fine wave patterns
+     * FULL AUDIO RESOLUTION BENEFITS:
+     * - Covers entire human hearing range (20 Hz - 20 kHz)
+     * - Perfect for music, voice, all acoustic content
+     * - Good balance between quality and performance
+     * - Engineering-grade spatial detail (8.6mm)
+     * - Enables clear visualization of wave patterns
      *
-     * PERFORMANCE CHALLENGES:
-     * - Very computationally intensive: 500K cells × ~1,909 sub-steps/frame
-     * - Requires ~955 million cell updates per frame at 60 FPS
-     * - Expected performance: 1-5 FPS on M3 GPU (use slow motion!)
-     * - Designed for slow-motion analysis, not realtime playback
+     * PERFORMANCE CHARACTERISTICS:
+     * - Moderate computation: 169K cells × ~940 sub-steps/frame
+     * - Requires ~159 million cell updates per frame at 60 FPS
+     * - Expected performance: 10-20 FPS on M3 GPU at 1× speed
+     * - Use 0.1× timescale for smooth 60 FPS, or accept ~15 FPS
+     * - Much more practical than 5mm while maintaining full audio range
      */
 }
 
@@ -94,10 +96,10 @@ void WaveSimulation::update(float dt_frame) {
      * Numerical stability (CFL condition):
      * c * dt / dx < 1/√2 ≈ 0.707 (in 2D)
      *
-     * With c = 343 m/s, dx = 0.005 m (HIGH RES):
-     * dt_max = 0.707 * 0.005 / 343 ≈ 1.03e-5 s ≈ 10.3 μs
+     * With c = 343 m/s, dx = 0.0086 m (FULL AUDIO):
+     * dt_max = 0.707 * 0.0086 / 343 ≈ 1.77e-5 s ≈ 17.7 μs
      *
-     * At 60 FPS (dt_frame ≈ 0.0167 s), we need ~1,621 sub-steps
+     * At 60 FPS (dt_frame ≈ 0.0167 s), we need ~940 sub-steps
      */
 
     // Clear listener sample buffer at start of frame
