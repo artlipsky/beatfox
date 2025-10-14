@@ -5,6 +5,7 @@
 #include "AudioSample.h"
 #include "AudioFileLoader.h"
 #include "DampingPreset.h"
+#include "AcousticUtils.h"
 #include "portable-file-dialogs.h"
 #include <iostream>
 
@@ -21,7 +22,9 @@ SimulationUI::SimulationUI(
     int& selectedPreset,
     float& sourceVolumeDb,
     bool& sourceLoop,
-    std::shared_ptr<AudioSample>& loadedSample
+    std::shared_ptr<AudioSample>& loadedSample,
+    float& impulsePressure,
+    int& impulseRadius
 )
     : simulation(sim)
     , audioOutput(audio)
@@ -36,6 +39,8 @@ SimulationUI::SimulationUI(
     , sourceVolumeDb(sourceVolumeDb)
     , sourceLoop(sourceLoop)
     , loadedSample(loadedSample)
+    , impulsePressure(impulsePressure)
+    , impulseRadius(impulseRadius)
 {
 }
 
@@ -273,6 +278,49 @@ void SimulationUI::renderControlsPanel() {
 
     ImGui::Spacing();
     ImGui::Separator();
+    ImGui::Spacing();
+
+    // Impulse (Click) Parameters Section
+    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.8f, 1.0f, 0.7f, 1.0f));
+    ImGui::Text("Impulse (Click) Parameters:");
+    ImGui::PopStyleColor();
+
+    // Pressure amplitude slider with dB SPL conversion
+    ImGui::SliderFloat("Pressure (Pa)", &impulsePressure, 0.01f, 100.0f, "%.2f Pa", ImGuiSliderFlags_Logarithmic);
+    if (ImGui::IsItemHovered()) {
+        const float dB_SPL = AcousticUtils::pressureToDbSpl(impulsePressure);
+        ImGui::SetTooltip("Acoustic pressure amplitude\n"
+                         "%.2f Pa ≈ %.0f dB SPL\n\n"
+                         "Reference:\n"
+                         "0.02 Pa = whisper (30 dB)\n"
+                         "0.2 Pa = conversation (60 dB)\n"
+                         "2 Pa = loud talking (80 dB)\n"
+                         "5 Pa = hand clap (94 dB)\n"
+                         "20 Pa = shout (100 dB)\n"
+                         "100 Pa = very loud (114 dB)",
+                         impulsePressure, dB_SPL);
+    }
+
+    // Impulse radius slider
+    ImGui::SliderInt("Spread (pixels)", &impulseRadius, 1, 10, "%d px");
+    if (ImGui::IsItemHovered()) {
+        const float pixelSizeMM = simulation ? simulation->getPixelSize() : 8.6f;
+        const float spreadMM = impulseRadius * pixelSizeMM;
+        ImGui::SetTooltip("Spatial spread of impulse\n"
+                         "%d pixels ≈ %.1f mm\n\n"
+                         "Smaller = point source (sharp wave)\n"
+                         "Larger = diffuse source (smooth wave)",
+                         impulseRadius, spreadMM);
+    }
+
+    // Show current impulse info
+    const float dB_SPL = AcousticUtils::pressureToDbSpl(impulsePressure);
+    const float pixelSizeMM = simulation ? simulation->getPixelSize() : 8.6f;
+    ImGui::TextDisabled("Click impulse: %.2f Pa (%.0f dB SPL), %.1f mm spread",
+                       impulsePressure, dB_SPL, impulseRadius * pixelSizeMM);
+
+    ImGui::Spacing();
+    ImGui::Separator();
     ImGui::Text("Controls:");
 
     if (sourceMode) {
@@ -289,7 +337,8 @@ void SimulationUI::renderControlsPanel() {
         ImGui::BulletText("Right Click: Remove obstacle");
         ImGui::PopStyleColor();
     } else {
-        ImGui::BulletText("Left Click: Create sound (5 Pa)");
+        const float dB_SPL_display = AcousticUtils::pressureToDbSpl(impulsePressure);
+        ImGui::BulletText("Left Click: Create impulse (%.1f Pa, %.0f dB)", impulsePressure, dB_SPL_display);
     }
     ImGui::BulletText("S: Audio Source mode (%s)", sourceMode ? "ON" : "OFF");
     ImGui::BulletText("V: Listener mode (%s)", listenerMode ? "ON" : "OFF");

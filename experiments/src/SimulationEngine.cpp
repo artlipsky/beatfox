@@ -25,6 +25,8 @@ SimulationEngine::SimulationEngine(Application& app)
     , sourceVolumeDb(0.0f)
     , sourceLoop(true)
     , loadedSample(nullptr)
+    , impulsePressure(5.0f)  // 5 Pa = typical hand clap
+    , impulseRadius(2)       // 2 pixels × 8.6mm = 17.2mm ≈ 2cm spread
     , gridWidth(581)   // 5m / 0.0086m = 581 pixels (SMALL ROOM + FULL AUDIO: 20 kHz support!)
     , gridHeight(291)  // 2.5m / 0.0086m = 291 pixels
     , lastFrameTime(0.0)
@@ -140,7 +142,8 @@ bool SimulationEngine::initializeSubsystems() {
     simulationUI = std::make_unique<SimulationUI>(
         simulation.get(), audioOutput.get(), coordinateMapper.get(),
         showHelp, timeScale, obstacleMode, obstacleRadius,
-        listenerMode, sourceMode, selectedPreset, sourceVolumeDb, sourceLoop, loadedSample
+        listenerMode, sourceMode, selectedPreset, sourceVolumeDb, sourceLoop, loadedSample,
+        impulsePressure, impulseRadius
     );
 
     // Initialize input handler
@@ -149,6 +152,7 @@ bool SimulationEngine::initializeSubsystems() {
         showHelp, timeScale, obstacleMode, obstacleRadius,
         listenerMode, draggingListener, sourceMode, selectedPreset,
         sourceVolumeDb, sourceLoop, loadedSample,
+        impulsePressure, impulseRadius,
         mousePressed, lastMouseX, lastMouseY, windowWidth, windowHeight
     );
 

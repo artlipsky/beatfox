@@ -75,6 +75,10 @@ private:
     bool sourceLoop;  // Loop audio
     std::shared_ptr<AudioSample> loadedSample;  // User-loaded audio file
 
+    // Impulse (click) parameters
+    float impulsePressure;  // Pressure amplitude in Pa (default: 5.0 Pa = hand clap)
+    int impulseRadius;  // Spatial spread in pixels (default: 2 pixels = 5 cm)
+
     // Grid dimensions (const after initialization)
     int gridWidth;
     int gridHeight;

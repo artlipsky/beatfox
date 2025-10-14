@@ -14,7 +14,25 @@ public:
     ~WaveSimulation();
 
     void update(float dt);
-    void addPressureSource(int x, int y, float pressure);
+
+    /*
+     * Add a brief impulse source to the simulation
+     *
+     * Creates a localized pressure spike that will propagate outward as
+     * circular waves, reflect off walls, and interfere with other waves.
+     *
+     * @param x Grid X coordinate (0 to width-1)
+     * @param y Grid Y coordinate (0 to height-1)
+     * @param pressure Pressure amplitude in Pascals (Pa)
+     *                 Typical range: 0.01-100 Pa
+     *                 Examples: 0.02 Pa = whisper, 5.0 Pa = hand clap, 20 Pa = shout
+     * @param radius Spatial spread in pixels (default: 2)
+     *               At 8.6mm/pixel: radius × 8.6mm = physical spread
+     *               Example: radius=2 → 17mm (typical hand clap)
+     *               Range: 1-10 pixels recommended
+     */
+    void addPressureSource(int x, int y, float pressure, int radius = 2);
+
     void clear();
 
     // Getters
@@ -43,6 +61,7 @@ public:
     // Physical dimensions
     float getPhysicalWidth() const { return width * dx; }  // meters
     float getPhysicalHeight() const { return height * dx; } // meters
+    float getPixelSize() const { return dx * 1000.0f; }  // millimeters per pixel
 
     // Obstacles
     void addObstacle(int x, int y, int radius);

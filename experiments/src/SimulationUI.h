@@ -59,7 +59,9 @@ public:
         int& selectedPreset,
         float& sourceVolumeDb,
         bool& sourceLoop,
-        std::shared_ptr<AudioSample>& loadedSample
+        std::shared_ptr<AudioSample>& loadedSample,
+        float& impulsePressure,
+        int& impulseRadius
     );
 
     ~SimulationUI() = default;
@@ -119,4 +121,6 @@ private:
     float& sourceVolumeDb;
     bool& sourceLoop;
     std::shared_ptr<AudioSample>& loadedSample;
+    float& impulsePressure;
+    int& impulseRadius;
 };

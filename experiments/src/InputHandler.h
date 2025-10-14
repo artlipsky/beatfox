@@ -76,6 +76,8 @@ public:
         float& sourceVolumeDb,
         bool& sourceLoop,
         std::shared_ptr<AudioSample>& loadedSample,
+        float& impulsePressure,
+        int& impulseRadius,
         bool& mousePressed,
         double& lastMouseX,
         double& lastMouseY,
@@ -185,6 +187,8 @@ private:
     float& sourceVolumeDb;
     bool& sourceLoop;
     std::shared_ptr<AudioSample>& loadedSample;
+    float& impulsePressure;
+    int& impulseRadius;
     bool& mousePressed;
     double& lastMouseX;
     double& lastMouseY;

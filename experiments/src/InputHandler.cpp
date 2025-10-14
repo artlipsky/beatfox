@@ -5,6 +5,7 @@
 #include "Renderer.h"
 #include "AudioSample.h"
 #include "AudioSource.h"
+#include "AcousticUtils.h"
 #include "portable-file-dialogs.h"
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
@@ -28,6 +29,8 @@ InputHandler::InputHandler(
     float& sourceVolumeDb,
     bool& sourceLoop,
     std::shared_ptr<AudioSample>& loadedSample,
+    float& impulsePressure,
+    int& impulseRadius,
     bool& mousePressed,
     double& lastMouseX,
     double& lastMouseY,
@@ -49,6 +52,8 @@ InputHandler::InputHandler(
     , sourceVolumeDb(sourceVolumeDb)
     , sourceLoop(sourceLoop)
     , loadedSample(loadedSample)
+    , impulsePressure(impulsePressure)
+    , impulseRadius(impulseRadius)
     , mousePressed(mousePressed)
     , lastMouseX(lastMouseX)
     , lastMouseY(lastMouseY)
@@ -192,10 +197,16 @@ void InputHandler::handleMouseButton(GLFWwindow* window, int button, int action,
                         std::cout << "Audio source placed at (" << gridX << ", " << gridY << "), volume: " << sourceVolumeDb << " dB" << std::endl;
                     }
                 } else {
-                    // Create a single impulse (like a hand clap)
-                    // Brief pressure impulse (5 Pa - typical hand clap)
-                    // For reference: whisper ~0.01 Pa, conversation ~0.1 Pa, clap ~5 Pa
-                    simulation->addPressureSource(gridX, gridY, 5.0f);
+                    // Create a single impulse using user-defined parameters
+                    // Pressure amplitude and spatial spread are controlled via UI
+                    simulation->addPressureSource(gridX, gridY, impulsePressure, impulseRadius);
+
+                    // Log impulse creation with physical parameters
+                    const float dB_SPL = AcousticUtils::pressureToDbSpl(impulsePressure);
+                    const float spreadMM = impulseRadius * simulation->getPixelSize();
+                    std::cout << "Created impulse at (" << gridX << ", " << gridY << "): "
+                              << impulsePressure << " Pa (" << dB_SPL << " dB SPL), "
+                              << impulseRadius << " px (" << spreadMM << " mm spread)" << std::endl;
                 }
             }
         } else if (action == GLFW_RELEASE) {

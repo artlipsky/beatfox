@@ -377,25 +377,50 @@ void WaveSimulation::updateStep(float dt) {
     }
 }
 
-void WaveSimulation::addPressureSource(int x, int y, float pressureAmplitude) {
+void WaveSimulation::addPressureSource(int x, int y, float pressureAmplitude, int radius) {
     /*
      * Add a brief impulse source - like a hand clap or drum hit
      *
      * This creates a localized pressure spike that will propagate
      * outward as circular waves, reflect off walls, and interfere.
+     *
+     * @param radius Spatial spread in pixels (default: 2)
+     *               At 8.6mm/pixel: radius pixels × 8.6mm = actual spatial spread
+     *               Example: radius=2 → 17.2mm ≈ 2cm (typical hand clap)
      */
 
+    // Validate grid coordinates
     if (x < 0 || x >= width || y < 0 || y >= height) {
         return;
     }
 
-    // Create a compact, smooth impulse
-    // With 1 pixel = 2.5 cm, radius of 2 pixels = 5 cm (realistic hand clap size)
-    const int sourceRadius = 2;  // 2 pixels × 2.5 cm/pixel = 5 cm
-    const float sigma = 2.5f;  // Gaussian width for smoothness
+    // Validate pressure amplitude (reasonable physical range)
+    // Max 1000 Pa ≈ 134 dB SPL (threshold of pain is ~120 dB)
+    if (pressureAmplitude <= 0.0f || pressureAmplitude > 1000.0f) {
+        std::cerr << "WaveSimulation: Invalid pressure amplitude: " << pressureAmplitude
+                  << " Pa (must be 0 < p <= 1000)" << std::endl;
+        return;
+    }
 
-    for (int dy = -sourceRadius; dy <= sourceRadius; dy++) {
-        for (int dx = -sourceRadius; dx <= sourceRadius; dx++) {
+    // Validate radius (must be positive and reasonable for grid)
+    // Max 50 pixels to prevent excessive computation or grid overflow
+    if (radius < 1 || radius > 50) {
+        std::cerr << "WaveSimulation: Invalid radius: " << radius
+                  << " pixels (must be 1 <= r <= 50)" << std::endl;
+        return;
+    }
+
+    // Gaussian width coefficient for impulse smoothness
+    // Value of 1.25 ensures smooth falloff while maintaining spatial localization
+    // Empirically determined for realistic impulse response (no sharp edges)
+    constexpr float GAUSSIAN_WIDTH_FACTOR = 1.25f;
+
+    // Create a compact, smooth impulse with user-defined spatial spread
+    // The Gaussian width scales with the radius for consistent smoothness
+    const float sigma = radius * GAUSSIAN_WIDTH_FACTOR;
+
+    for (int dy = -radius; dy <= radius; dy++) {
+        for (int dx = -radius; dx <= radius; dx++) {
             int px = x + dx;
             int py = y + dy;
 
