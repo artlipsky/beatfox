@@ -71,9 +71,14 @@ public:
 
     // GPU buffers (multi-step execution)
     id<MTLBuffer> tripleBuffer;         // 3x concatenated pressure buffers
-    id<MTLBuffer> multiStepParamsBuffer; // Multi-step parameters
+    id<MTLBuffer> multiStepParamsBuffer; // Multi-step parameters (LEGACY - for single buffer approach)
     id<MTLBuffer> listenerSamplesBuffer; // Listener samples output
-    id<MTLBuffer> audioSourcesBuffer;    // Audio source data (for injection)
+    id<MTLBuffer> audioSourcesBuffer;    // Audio source data (LEGACY - for single buffer approach)
+
+    // NEW: Pre-allocated arrays of buffers (one per sub-step)
+    std::vector<id<MTLBuffer>> multiStepParamsBuffers;  // Array of parameter buffers
+    std::vector<id<MTLBuffer>> audioSourcesBuffers;     // Array of audio source buffers
+    static const int MAX_SUBSTEPS = 1500;  // Maximum sub-steps per frame (handles real-time at 8.6mm)
 
     int width;
     int height;
@@ -123,6 +128,18 @@ public:
         multiStepParamsBuffer = nil;
         listenerSamplesBuffer = nil;
         audioSourcesBuffer = nil;
+
+        // Clean up buffer arrays
+        for (auto& buffer : multiStepParamsBuffers) {
+            buffer = nil;
+        }
+        multiStepParamsBuffers.clear();
+
+        for (auto& buffer : audioSourcesBuffers) {
+            buffer = nil;
+        }
+        audioSourcesBuffers.clear();
+
         computePipeline = nil;
         multiStepPipeline = nil;
         library = nil;
@@ -276,9 +293,41 @@ bool MetalSimulationBackend::initialize(int width, int height) {
         return false;
     }
 
+    // NEW: Pre-allocate arrays of buffers for batched execution
+    // This eliminates the need for per-step synchronization waits!
+    std::cout << "MetalBackend: Pre-allocating " << pImpl->MAX_SUBSTEPS << " parameter buffers for batched execution..." << std::endl;
+
+    pImpl->multiStepParamsBuffers.reserve(pImpl->MAX_SUBSTEPS);
+    pImpl->audioSourcesBuffers.reserve(pImpl->MAX_SUBSTEPS);
+
+    for (int i = 0; i < pImpl->MAX_SUBSTEPS; i++) {
+        // Allocate parameter buffer for this sub-step
+        id<MTLBuffer> paramsBuffer = [pImpl->device newBufferWithLength:sizeof(MultiStepParams)
+                                                                options:MTLResourceStorageModeShared];
+        if (!paramsBuffer) {
+            lastError = "Failed to pre-allocate parameter buffer array";
+            std::cerr << "MetalBackend: " << lastError << std::endl;
+            return false;
+        }
+        pImpl->multiStepParamsBuffers.push_back(paramsBuffer);
+
+        // Allocate audio sources buffer for this sub-step
+        id<MTLBuffer> audioBuffer = [pImpl->device newBufferWithLength:audioSourcesSize
+                                                               options:MTLResourceStorageModeShared];
+        if (!audioBuffer) {
+            lastError = "Failed to pre-allocate audio sources buffer array";
+            std::cerr << "MetalBackend: " << lastError << std::endl;
+            return false;
+        }
+        pImpl->audioSourcesBuffers.push_back(audioBuffer);
+    }
+
     std::cout << "MetalBackend: Initialized successfully" << std::endl;
     std::cout << "MetalBackend: Grid size: " << width << "x" << height << " (" << pImpl->gridSize << " cells)" << std::endl;
     std::cout << "MetalBackend: Buffer size: " << (bufferSize / 1024.0f / 1024.0f) << " MB per field" << std::endl;
+    float totalBufferSize = (bufferSize * 3 + listenerSamplesSize +
+                             pImpl->MAX_SUBSTEPS * (sizeof(MultiStepParams) + audioSourcesSize)) / 1024.0f / 1024.0f;
+    std::cout << "MetalBackend: Total GPU memory: " << totalBufferSize << " MB (including " << pImpl->MAX_SUBSTEPS << " pre-allocated parameter buffers)" << std::endl;
 
     return true;
 }
@@ -392,8 +441,15 @@ void MetalSimulationBackend::executeFrame(
     // Copy obstacles to GPU
     memcpy([pImpl->obstaclesBuffer contents], obstacles.data(), pImpl->gridSize * sizeof(uint8_t));
 
-    // Execute all sub-steps on GPU
-    // Triple buffering rotation: (current, prev, next) → (next, current, prev)
+    // Validate numSubSteps doesn't exceed our pre-allocated buffer capacity
+    if (numSubSteps > pImpl->MAX_SUBSTEPS) {
+        std::cerr << "MetalBackend: ERROR: numSubSteps (" << numSubSteps
+                  << ") exceeds MAX_SUBSTEPS (" << pImpl->MAX_SUBSTEPS << ")" << std::endl;
+        numSubSteps = pImpl->MAX_SUBSTEPS;  // Clamp to maximum
+    }
+
+    // PHASE 1: Pre-fill all parameter and audio source buffers upfront
+    // This allows GPU to run all sub-steps without CPU intervention!
     int currentIdx = 0;  // Initial current
     int prevIdx = 1;     // Initial previous
     int nextIdx = 2;     // Initial next
@@ -404,14 +460,14 @@ void MetalSimulationBackend::executeFrame(
         if (step < static_cast<int>(audioSourcesPerStep.size())) {
             numAudioSources = std::min(static_cast<int>(audioSourcesPerStep[step].size()), 16);
             if (numAudioSources > 0) {
-                // Copy audio source data to GPU
-                AudioSourceData* audioSourcesPtr = (AudioSourceData*)[pImpl->audioSourcesBuffer contents];
+                // Copy audio source data to this step's dedicated buffer
+                AudioSourceData* audioSourcesPtr = (AudioSourceData*)[pImpl->audioSourcesBuffers[step] contents];
                 memcpy(audioSourcesPtr, audioSourcesPerStep[step].data(), numAudioSources * sizeof(AudioSourceData));
             }
         }
 
-        // Set up multi-step parameters
-        MultiStepParams* params = (MultiStepParams*)[pImpl->multiStepParamsBuffer contents];
+        // Set up parameters in this step's dedicated buffer
+        MultiStepParams* params = (MultiStepParams*)[pImpl->multiStepParamsBuffers[step] contents];
         params->width = pImpl->width;
         params->height = pImpl->height;
         params->c2_dt2_dx2 = c2_dt2_dx2;
@@ -426,6 +482,23 @@ void MetalSimulationBackend::executeFrame(
         params->subStepIdx = step;
         params->numAudioSources = numAudioSources;
 
+        // Rotate buffer indices for next iteration
+        int temp = prevIdx;
+        prevIdx = currentIdx;
+        currentIdx = nextIdx;
+        nextIdx = temp;
+    }
+
+    // PHASE 2: Create and encode all command buffers at once
+    // No waits! GPU can execute all sub-steps in parallel/pipelined fashion
+    std::vector<id<MTLCommandBuffer>> commandBuffers;
+    commandBuffers.reserve(numSubSteps);
+
+    currentIdx = 0;  // Reset for encoding
+    prevIdx = 1;
+    nextIdx = 2;
+
+    for (int step = 0; step < numSubSteps; step++) {
         // Create command buffer for this step
         id<MTLCommandBuffer> commandBuffer = [pImpl->commandQueue commandBuffer];
 
@@ -433,12 +506,13 @@ void MetalSimulationBackend::executeFrame(
         id<MTLComputeCommandEncoder> computeEncoder = [commandBuffer computeCommandEncoder];
 
         // Set compute pipeline and buffers
+        // Each step uses its own pre-filled parameter and audio buffers!
         [computeEncoder setComputePipelineState:pImpl->multiStepPipeline];
         [computeEncoder setBuffer:pImpl->tripleBuffer offset:0 atIndex:0];
         [computeEncoder setBuffer:pImpl->obstaclesBuffer offset:0 atIndex:1];
         [computeEncoder setBuffer:pImpl->listenerSamplesBuffer offset:0 atIndex:2];
-        [computeEncoder setBuffer:pImpl->multiStepParamsBuffer offset:0 atIndex:3];
-        [computeEncoder setBuffer:pImpl->audioSourcesBuffer offset:0 atIndex:4];
+        [computeEncoder setBuffer:pImpl->multiStepParamsBuffers[step] offset:0 atIndex:3];
+        [computeEncoder setBuffer:pImpl->audioSourcesBuffers[step] offset:0 atIndex:4];
 
         // Calculate thread groups (16x16 threads per group is optimal for M-series GPUs)
         MTLSize threadgroupSize = MTLSizeMake(16, 16, 1);
@@ -452,19 +526,27 @@ void MetalSimulationBackend::executeFrame(
         [computeEncoder dispatchThreads:gridSize threadsPerThreadgroup:threadgroupSize];
         [computeEncoder endEncoding];
 
-        // Commit and wait for this step to complete
-        // CRITICAL: We must wait because we reuse multiStepParamsBuffer and audioSourcesBuffer
-        // If we don't wait, subsequent steps might overwrite the buffer before GPU reads it!
-        // This creates a race condition and causes simulation instability.
-        [commandBuffer commit];
-        [commandBuffer waitUntilCompleted];
+        // Store command buffer for later commit
+        commandBuffers.push_back(commandBuffer);
 
-        // Rotate buffer indices for next iteration
-        // (current, prev, next) → (next, current, prev)
+        // Update indices for next step (even though we don't use them in encoding,
+        // we need to track final state)
         int temp = prevIdx;
         prevIdx = currentIdx;
         currentIdx = nextIdx;
         nextIdx = temp;
+    }
+
+    // PHASE 3: Commit all command buffers at once
+    // GPU can now execute all sub-steps with maximum parallelism!
+    for (auto& commandBuffer : commandBuffers) {
+        [commandBuffer commit];
+    }
+
+    // PHASE 4: Wait only once for ALL sub-steps to complete
+    // This is the ONLY synchronization point - massive performance win!
+    for (auto& commandBuffer : commandBuffers) {
+        [commandBuffer waitUntilCompleted];
     }
 
     // Copy final state back to CPU
