@@ -16,7 +16,7 @@ WaveSimulation::WaveSimulation(int width, int height)
       ,
       wallReflection(0.85f)  // Wall reflection coefficient (15% energy loss per reflection)
       ,
-      dx(0.05f)  // Spatial grid spacing: 1 pixel = 5 cm = 0.05 m
+      dx(0.01f)  // HIGH RESOLUTION: 1 pixel = 1 cm = 0.01 m (5x finer!)
       ,
       currentPreset(DampingPreset::fromType(
           DampingPreset::Type::REALISTIC))  // Initialize with realistic preset
@@ -49,13 +49,15 @@ WaveSimulation::WaveSimulation(int width, int height)
     }
 
     /*
-     * PHYSICAL UNITS AND SCALE:
-     * -------------------------
-     * Coordinate system: 1 pixel = 5 cm = 50 mm = 0.05 m
+     * PHYSICAL UNITS AND SCALE (HIGH RESOLUTION):
+     * -------------------------------------------
+     * Coordinate system: 1 pixel = 1 cm = 10 mm = 0.01 m (5x finer than before!)
      *
-     * For 400x200 grid (W x H):
+     * For 2000x1000 grid (W x H):
      * - Physical room size: 20m x 10m (width x height)
      * - Aspect ratio: 2:1 (rectangular room)
+     * - Grid cells: 2,000,000 (25x more than 400x200!)
+     * - Max frequency: f_max = c/(2*dx) = 343/0.02 = 17.15 kHz
      *
      * Physical constants (air at 20°C, 1 atm):
      * - Speed of sound: c = 343 m/s
@@ -79,8 +81,8 @@ void WaveSimulation::update(float dt_frame) {
      * Numerical stability (CFL condition):
      * c * dt / dx < 1/√2 ≈ 0.707 (in 2D)
      *
-     * With c = 343 m/s, dx = 0.01 m:
-     * dt_max = 0.707 * 0.01 / 343 ≈ 2.06e-5 s
+     * With c = 343 m/s, dx = 0.01 m (HIGH RESOLUTION):
+     * dt_max = 0.707 * 0.01 / 343 ≈ 2.06e-5 s ≈ 20.6 μs
      *
      * At 60 FPS (dt_frame ≈ 0.0167 s), we need multiple sub-steps
      */
@@ -322,9 +324,9 @@ void WaveSimulation::addPressureSource(int x, int y, float pressureAmplitude) {
     }
 
     // Create a compact, smooth impulse
-    // With 1 pixel = 5 cm, radius of 2 pixels = 10 cm (realistic hand clap size)
-    const int sourceRadius = 2;
-    const float sigma = 2.5f;  // Gaussian width for smoothness
+    // With 1 pixel = 1 cm, radius of 10 pixels = 10 cm (realistic hand clap size)
+    const int sourceRadius = 10;  // 10 pixels × 1 cm/pixel = 10 cm
+    const float sigma = 5.0f;  // Gaussian width for smoothness (scaled for finer grid)
 
     for (int dy = -sourceRadius; dy <= sourceRadius; dy++) {
         for (int dx = -sourceRadius; dx <= sourceRadius; dx++) {
