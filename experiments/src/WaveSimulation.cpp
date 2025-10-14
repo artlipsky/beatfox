@@ -16,7 +16,7 @@ WaveSimulation::WaveSimulation(int width, int height)
       ,
       wallReflection(0.85f)  // Wall reflection coefficient (15% energy loss per reflection)
       ,
-      dx(0.05f)  // Spatial grid spacing: 1 pixel = 5 cm = 0.05 m
+      dx(0.017f)  // Spatial grid spacing: 1 pixel = 1.7 cm = 0.017 m (HIGH RES)
       ,
       currentPreset(DampingPreset::fromType(
           DampingPreset::Type::REALISTIC))  // Initialize with realistic preset
@@ -49,15 +49,16 @@ WaveSimulation::WaveSimulation(int width, int height)
     }
 
     /*
-     * PHYSICAL UNITS AND SCALE:
-     * -------------------------
-     * Coordinate system: 1 pixel = 5 cm = 50 mm = 0.05 m
+     * PHYSICAL UNITS AND SCALE (HIGH RESOLUTION):
+     * -------------------------------------------
+     * Coordinate system: 1 pixel = 1.7 cm = 17 mm = 0.017 m
      *
-     * For 400x200 grid (W x H):
+     * For 1176x588 grid (W x H):
      * - Physical room size: 20m x 10m (width x height)
      * - Aspect ratio: 2:1 (rectangular room)
-     * - Grid cells: 80,000
-     * - Max frequency: f_max = c/(2*dx) = 343/0.10 = 3.43 kHz
+     * - Grid cells: 691,488 (8.6× more than previous 400×200 grid)
+     * - Max frequency: f_max = c/(2*dx) = 343/0.034 = 10.1 kHz
+     * - Memory: ~8.3 MB for 3 pressure fields (vs 0.96 MB before)
      *
      * Physical constants (air at 20°C, 1 atm):
      * - Speed of sound: c = 343 m/s
@@ -66,6 +67,11 @@ WaveSimulation::WaveSimulation(int width, int height)
      *
      * The pressure field represents acoustic pressure p (Pa),
      * which is the deviation from atmospheric pressure P₀.
+     *
+     * HIGH RESOLUTION BENEFITS:
+     * - Supports frequencies up to 10 kHz (vs 3.4 kHz before)
+     * - Music is recognizable (includes vocals, cymbals, harmonics)
+     * - GPU optimization keeps frame rate acceptable
      */
 }
 
@@ -81,10 +87,10 @@ void WaveSimulation::update(float dt_frame) {
      * Numerical stability (CFL condition):
      * c * dt / dx < 1/√2 ≈ 0.707 (in 2D)
      *
-     * With c = 343 m/s, dx = 0.05 m:
-     * dt_max = 0.707 * 0.05 / 343 ≈ 1.03e-4 s ≈ 103 μs
+     * With c = 343 m/s, dx = 0.017 m (HIGH RES):
+     * dt_max = 0.707 * 0.017 / 343 ≈ 3.5e-5 s ≈ 35 μs
      *
-     * At 60 FPS (dt_frame ≈ 0.0167 s), we need multiple sub-steps
+     * At 60 FPS (dt_frame ≈ 0.0167 s), we need ~477 sub-steps
      */
 
     // Clear listener sample buffer at start of frame
