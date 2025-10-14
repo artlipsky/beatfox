@@ -20,6 +20,25 @@ struct SimulationParams {
 };
 
 /*
+ * Multi-step simulation parameters
+ * Must match the struct in WaveEquation.metal
+ */
+struct MultiStepParams {
+    int width;
+    int height;
+    float c2_dt2_dx2;
+    float damping;
+    float wallReflection;
+    float twoOverDamping;
+    int currentIdx;
+    int prevIdx;
+    int nextIdx;
+    int listenerX;
+    int listenerY;
+    int subStepIdx;
+};
+
+/*
  * MetalSimulationBackend Implementation
  *
  * Uses Metal compute shaders to accelerate wave propagation on GPU
@@ -29,14 +48,20 @@ public:
     id<MTLDevice> device;
     id<MTLCommandQueue> commandQueue;
     id<MTLComputePipelineState> computePipeline;
+    id<MTLComputePipelineState> multiStepPipeline;  // New: multi-step kernel
     id<MTLLibrary> library;
 
-    // GPU buffers
+    // GPU buffers (single-step execution)
     id<MTLBuffer> pressureBuffer;
     id<MTLBuffer> pressurePrevBuffer;
     id<MTLBuffer> pressureNextBuffer;
     id<MTLBuffer> obstaclesBuffer;
     id<MTLBuffer> paramsBuffer;
+
+    // GPU buffers (multi-step execution)
+    id<MTLBuffer> tripleBuffer;         // 3x concatenated pressure buffers
+    id<MTLBuffer> multiStepParamsBuffer; // Multi-step parameters
+    id<MTLBuffer> listenerSamplesBuffer; // Listener samples output
 
     int width;
     int height;
@@ -49,15 +74,19 @@ public:
     uint64_t totalSteps;
 
     Impl() :
- device(nil),
+        device(nil),
         commandQueue(nil),
         computePipeline(nil),
+        multiStepPipeline(nil),
         library(nil),
         pressureBuffer(nil),
         pressurePrevBuffer(nil),
         pressureNextBuffer(nil),
         obstaclesBuffer(nil),
         paramsBuffer(nil),
+        tripleBuffer(nil),
+        multiStepParamsBuffer(nil),
+        listenerSamplesBuffer(nil),
         width(0),
         height(0),
         gridSize(0),
@@ -77,7 +106,11 @@ public:
         pressureNextBuffer = nil;
         obstaclesBuffer = nil;
         paramsBuffer = nil;
+        tripleBuffer = nil;
+        multiStepParamsBuffer = nil;
+        listenerSamplesBuffer = nil;
         computePipeline = nil;
+        multiStepPipeline = nil;
         library = nil;
         commandQueue = nil;
         device = nil;
@@ -162,6 +195,27 @@ bool MetalSimulationBackend::initialize(int width, int height) {
         return false;
     }
 
+    // Get multi-step kernel function
+    id<MTLFunction> multiStepKernelFunction = [pImpl->library newFunctionWithName:@"multiStepWaveEquation"];
+    if (!multiStepKernelFunction) {
+        lastError = "Failed to find kernel function 'multiStepWaveEquation'";
+        std::cerr << "MetalBackend: " << lastError << std::endl;
+        return false;
+    }
+
+    // Create multi-step compute pipeline
+    pImpl->multiStepPipeline = [pImpl->device newComputePipelineStateWithFunction:multiStepKernelFunction
+                                                                            error:&error];
+    if (error || !pImpl->multiStepPipeline) {
+        if (error) {
+            lastError = std::string("Failed to create multi-step compute pipeline: ") + [[error localizedDescription] UTF8String];
+        } else {
+            lastError = "Failed to create multi-step compute pipeline";
+        }
+        std::cerr << "MetalBackend: " << lastError << std::endl;
+        return false;
+    }
+
     // Create GPU buffers (using shared storage for unified memory on Apple Silicon)
     NSUInteger bufferSize = pImpl->gridSize * sizeof(float);
     NSUInteger obstaclesSize = pImpl->gridSize * sizeof(uint8_t);
@@ -177,8 +231,25 @@ bool MetalSimulationBackend::initialize(int width, int height) {
     pImpl->paramsBuffer = [pImpl->device newBufferWithLength:sizeof(SimulationParams)
                                                       options:MTLResourceStorageModeShared];
 
+    // Multi-step buffers
+    // Triple buffer: 3× pressure field size for index-based triple buffering
+    NSUInteger tripleBufferSize = 3 * bufferSize;
+    pImpl->tripleBuffer = [pImpl->device newBufferWithLength:tripleBufferSize
+                                                      options:MTLResourceStorageModeShared];
+
+    // Multi-step params buffer
+    pImpl->multiStepParamsBuffer = [pImpl->device newBufferWithLength:sizeof(MultiStepParams)
+                                                              options:MTLResourceStorageModeShared];
+
+    // Listener samples buffer (max ~500 sub-steps per frame)
+    NSUInteger maxSubSteps = 500;
+    NSUInteger listenerSamplesSize = maxSubSteps * sizeof(float);
+    pImpl->listenerSamplesBuffer = [pImpl->device newBufferWithLength:listenerSamplesSize
+                                                               options:MTLResourceStorageModeShared];
+
     if (!pImpl->pressureBuffer || !pImpl->pressurePrevBuffer || !pImpl->pressureNextBuffer ||
-        !pImpl->obstaclesBuffer || !pImpl->paramsBuffer) {
+        !pImpl->obstaclesBuffer || !pImpl->paramsBuffer ||
+        !pImpl->tripleBuffer || !pImpl->multiStepParamsBuffer || !pImpl->listenerSamplesBuffer) {
         lastError = "Failed to create Metal buffers";
         std::cerr << "MetalBackend: " << lastError << std::endl;
         return false;
@@ -262,6 +333,118 @@ void MetalSimulationBackend::executeStep(
     pImpl->totalSteps++;
 }
 
+void MetalSimulationBackend::executeFrame(
+    const std::vector<float>& initialPressure,
+    const std::vector<float>& initialPressurePrev,
+    std::vector<float>& finalPressure,
+    std::vector<float>& finalPressurePrev,
+    const std::vector<uint8_t>& obstacles,
+    std::vector<float>& listenerSamples,
+    int listenerX,
+    int listenerY,
+    int numSubSteps,
+    float c2_dt2_dx2,
+    float damping,
+    float wallReflection)
+{
+    if (!isAvailable()) {
+        return;
+    }
+
+    pImpl->lastStepStart = std::chrono::high_resolution_clock::now();
+
+    // Resize output vectors
+    listenerSamples.resize(numSubSteps, 0.0f);
+    finalPressure.resize(pImpl->gridSize);
+    finalPressurePrev.resize(pImpl->gridSize);
+
+    // Copy initial state to GPU triple buffer
+    // Buffer 0: initial current pressure
+    // Buffer 1: initial previous pressure
+    // Buffer 2: will hold next state
+    float* tripleBufferPtr = (float*)[pImpl->tripleBuffer contents];
+    memcpy(tripleBufferPtr, initialPressure.data(), pImpl->gridSize * sizeof(float));  // Buffer 0
+    memcpy(tripleBufferPtr + pImpl->gridSize, initialPressurePrev.data(), pImpl->gridSize * sizeof(float));  // Buffer 1
+    // Buffer 2 doesn't need initialization - it will be written to
+
+    // Copy obstacles to GPU
+    memcpy([pImpl->obstaclesBuffer contents], obstacles.data(), pImpl->gridSize * sizeof(uint8_t));
+
+    // Execute all sub-steps on GPU
+    // Triple buffering rotation: (current, prev, next) → (next, current, prev)
+    int currentIdx = 0;  // Initial current
+    int prevIdx = 1;     // Initial previous
+    int nextIdx = 2;     // Initial next
+
+    for (int step = 0; step < numSubSteps; step++) {
+        // Set up multi-step parameters
+        MultiStepParams* params = (MultiStepParams*)[pImpl->multiStepParamsBuffer contents];
+        params->width = pImpl->width;
+        params->height = pImpl->height;
+        params->c2_dt2_dx2 = c2_dt2_dx2;
+        params->damping = damping;
+        params->wallReflection = wallReflection;
+        params->twoOverDamping = 2.0f * damping;
+        params->currentIdx = currentIdx;
+        params->prevIdx = prevIdx;
+        params->nextIdx = nextIdx;
+        params->listenerX = listenerX;
+        params->listenerY = listenerY;
+        params->subStepIdx = step;
+
+        // Create command buffer for this step
+        id<MTLCommandBuffer> commandBuffer = [pImpl->commandQueue commandBuffer];
+
+        // Create compute encoder
+        id<MTLComputeCommandEncoder> computeEncoder = [commandBuffer computeCommandEncoder];
+
+        // Set compute pipeline and buffers
+        [computeEncoder setComputePipelineState:pImpl->multiStepPipeline];
+        [computeEncoder setBuffer:pImpl->tripleBuffer offset:0 atIndex:0];
+        [computeEncoder setBuffer:pImpl->obstaclesBuffer offset:0 atIndex:1];
+        [computeEncoder setBuffer:pImpl->listenerSamplesBuffer offset:0 atIndex:2];
+        [computeEncoder setBuffer:pImpl->multiStepParamsBuffer offset:0 atIndex:3];
+
+        // Calculate thread groups (16x16 threads per group is optimal for M-series GPUs)
+        MTLSize threadgroupSize = MTLSizeMake(16, 16, 1);
+        MTLSize gridSize = MTLSizeMake(
+            (pImpl->width + threadgroupSize.width - 1) / threadgroupSize.width * threadgroupSize.width,
+            (pImpl->height + threadgroupSize.height - 1) / threadgroupSize.height * threadgroupSize.height,
+            1
+        );
+
+        // Dispatch compute kernel
+        [computeEncoder dispatchThreads:gridSize threadsPerThreadgroup:threadgroupSize];
+        [computeEncoder endEncoding];
+
+        // Commit and wait for completion (ensures each step sees correct buffer indices)
+        [commandBuffer commit];
+        [commandBuffer waitUntilCompleted];
+
+        // Rotate buffer indices for next iteration
+        // (current, prev, next) → (next, current, prev)
+        int temp = prevIdx;
+        prevIdx = currentIdx;
+        currentIdx = nextIdx;
+        nextIdx = temp;
+    }
+
+    // Copy final state back to CPU
+    // After all sub-steps, currentIdx points to the final current state
+    // and prevIdx points to the final previous state
+    memcpy(finalPressure.data(), tripleBufferPtr + currentIdx * pImpl->gridSize, pImpl->gridSize * sizeof(float));
+    memcpy(finalPressurePrev.data(), tripleBufferPtr + prevIdx * pImpl->gridSize, pImpl->gridSize * sizeof(float));
+
+    // Copy listener samples back to CPU
+    memcpy(listenerSamples.data(), [pImpl->listenerSamplesBuffer contents], numSubSteps * sizeof(float));
+
+    // Update performance stats
+    auto stepEnd = std::chrono::high_resolution_clock::now();
+    pImpl->lastStepTimeMs = std::chrono::duration<double, std::milli>(stepEnd - pImpl->lastStepStart).count();
+    pImpl->totalTimeMs += pImpl->lastStepTimeMs;
+    pImpl->totalSteps++;
+}
+
 const std::string& MetalSimulationBackend::getLastError() const {
     return lastError;
 }
@@ -303,6 +486,19 @@ void MetalSimulationBackend::executeStep(
     const std::vector<float>&,
     std::vector<float>&,
     const std::vector<uint8_t>&,
+    float, float, float)
+{
+    // No-op on non-Apple platforms
+}
+
+void MetalSimulationBackend::executeFrame(
+    const std::vector<float>&,
+    const std::vector<float>&,
+    std::vector<float>&,
+    std::vector<float>&,
+    const std::vector<uint8_t>&,
+    std::vector<float>&,
+    int, int, int,
     float, float, float)
 {
     // No-op on non-Apple platforms

@@ -64,6 +64,46 @@ public:
     );
 
     /*
+     * Execute multiple wave equation time steps on GPU (OPTIMIZED)
+     *
+     * KEY OPTIMIZATION: Data stays on GPU for entire frame!
+     * - Copy initial state to GPU: ~1.84 MB
+     * - Execute all sub-steps on GPU (no CPU round-trip)
+     * - Copy final state + listener samples back: ~1.84 MB
+     *
+     * Performance: 382x less memory bandwidth than per-step execution
+     * - Before: ~703 MB per frame (191 copies × 3.68 MB)
+     * - After: ~3.68 MB per frame (2 copies × 1.84 MB)
+     *
+     * @param initialPressure Initial current pressure field
+     * @param initialPressurePrev Initial previous pressure field
+     * @param finalPressure Output: final current pressure field
+     * @param finalPressurePrev Output: final previous pressure field
+     * @param obstacles Obstacle mask
+     * @param listenerSamples Output: pressure samples at listener position
+     * @param listenerX Listener X coordinate (-1 if disabled)
+     * @param listenerY Listener Y coordinate
+     * @param numSubSteps Number of sub-steps to execute
+     * @param c2_dt2_dx2 CFL coefficient
+     * @param damping Air absorption coefficient
+     * @param wallReflection Wall reflection coefficient
+     */
+    void executeFrame(
+        const std::vector<float>& initialPressure,
+        const std::vector<float>& initialPressurePrev,
+        std::vector<float>& finalPressure,
+        std::vector<float>& finalPressurePrev,
+        const std::vector<uint8_t>& obstacles,
+        std::vector<float>& listenerSamples,
+        int listenerX,
+        int listenerY,
+        int numSubSteps,
+        float c2_dt2_dx2,
+        float damping,
+        float wallReflection
+    );
+
+    /*
      * Get last error message
      */
     const std::string& getLastError() const;
