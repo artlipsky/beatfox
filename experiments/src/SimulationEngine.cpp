@@ -307,6 +307,12 @@ void SimulationEngine::resizeSimulation(GridSize newSize) {
     float listenerRatioY = static_cast<float>(oldListenerY) / gridHeight;
     bool listenerWasEnabled = simulation->hasListener();
 
+    // CRITICAL: Clear all audio sources and obstacles before resize
+    // This prevents crashes in Metal backend with mismatched buffer sizes
+    simulation->clearAudioSources();
+    simulation->clearObstacles();
+    simulation->clear();
+
     // Update grid dimensions
     gridWidth = newWidth;
     gridHeight = newHeight;
