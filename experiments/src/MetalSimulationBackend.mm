@@ -398,6 +398,8 @@ void MetalSimulationBackend::executeFrame(
     int prevIdx = 1;     // Initial previous
     int nextIdx = 2;     // Initial next
 
+    id<MTLCommandBuffer> lastCommandBuffer = nil;
+
     for (int step = 0; step < numSubSteps; step++) {
         // Get audio sources for this sub-step
         int numAudioSources = 0;
@@ -452,9 +454,10 @@ void MetalSimulationBackend::executeFrame(
         [computeEncoder dispatchThreads:gridSize threadsPerThreadgroup:threadgroupSize];
         [computeEncoder endEncoding];
 
-        // Commit and wait for completion (ensures each step sees correct buffer indices)
+        // Commit command buffer - Metal automatically serializes them in queue order
+        // No need to wait here! GPU will execute in order, allowing CPU to continue
         [commandBuffer commit];
-        [commandBuffer waitUntilCompleted];
+        lastCommandBuffer = commandBuffer;  // Track last buffer
 
         // Rotate buffer indices for next iteration
         // (current, prev, next) → (next, current, prev)
@@ -462,6 +465,12 @@ void MetalSimulationBackend::executeFrame(
         prevIdx = currentIdx;
         currentIdx = nextIdx;
         nextIdx = temp;
+    }
+
+    // Wait for ALL GPU work to complete (only once, not 477 times!)
+    // This allows the GPU to pipeline all commands without CPU stalls
+    if (lastCommandBuffer != nil) {
+        [lastCommandBuffer waitUntilCompleted];
     }
 
     // Copy final state back to CPU
