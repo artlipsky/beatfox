@@ -16,7 +16,7 @@ WaveSimulation::WaveSimulation(int width, int height)
       ,
       wallReflection(0.85f)  // Wall reflection coefficient (15% energy loss per reflection)
       ,
-      dx(0.1f)  // Spatial grid spacing: 1 pixel = 10 cm = 0.1 m (LOW RES)
+      dx(0.025f)  // Spatial grid spacing: 1 pixel = 2.5 cm = 0.025 m (BALANCED)
       ,
       currentPreset(DampingPreset::fromType(
           DampingPreset::Type::REALISTIC))  // Initialize with realistic preset
@@ -49,16 +49,16 @@ WaveSimulation::WaveSimulation(int width, int height)
     }
 
     /*
-     * PHYSICAL UNITS AND SCALE (SMALL ROOM):
+     * PHYSICAL UNITS AND SCALE (SMALL ROOM + BALANCED RESOLUTION):
      * -----------------------------------------------
-     * Coordinate system: 1 pixel = 10 cm = 100 mm = 0.1 m
+     * Coordinate system: 1 pixel = 2.5 cm = 25 mm = 0.025 m
      *
-     * For 50x25 grid (W x H):
+     * For 200x100 grid (W x H):
      * - Physical room size: 5m x 2.5m (width x height)
      * - Aspect ratio: 2:1 (rectangular room)
-     * - Grid cells: 1,250 (tiny room for testing high resolution later!)
-     * - Max frequency: f_max = c/(2*dx) = 343/0.2 = 1.715 kHz
-     * - Memory: ~15 KB for 3 pressure fields
+     * - Grid cells: 20,000 (same as previous 20m×10m @ 10cm!)
+     * - Max frequency: f_max = c/(2*dx) = 343/0.05 = 6.86 kHz
+     * - Memory: ~0.23 MB for 3 pressure fields
      *
      * Physical constants (air at 20°C, 1 atm):
      * - Speed of sound: c = 343 m/s
@@ -68,14 +68,13 @@ WaveSimulation::WaveSimulation(int width, int height)
      * The pressure field represents acoustic pressure p (Pa),
      * which is the deviation from atmospheric pressure P₀.
      *
-     * SMALL ROOM BENEFITS:
-     * - Ultra-fast performance - only 1,250 cells!
-     * - Minimal memory usage (~15 KB)
-     * - Very few sub-steps needed (~81 per frame)
-     * - Perfect for testing high-resolution settings (8.6mm for 20 kHz)
-     * - Tiny room allows us to increase resolution dramatically
-     * - Current: 10cm resolution (1.7 kHz max)
-     * - Next step: 8.6mm resolution for full 20 kHz audio range!
+     * SMALL ROOM + BALANCED RESOLUTION BENEFITS:
+     * - Fast performance - same cell count as before but better resolution!
+     * - Low memory usage (~230 KB)
+     * - Moderate sub-steps needed (~324 per frame)
+     * - Good music quality - covers most musical content (6.8 kHz)
+     * - Smaller room = less reverberation = cleaner sound
+     * - Can still increase resolution to 8.6mm for full 20 kHz (will be 581×291 = 169K cells)
      */
 }
 
@@ -91,10 +90,10 @@ void WaveSimulation::update(float dt_frame) {
      * Numerical stability (CFL condition):
      * c * dt / dx < 1/√2 ≈ 0.707 (in 2D)
      *
-     * With c = 343 m/s, dx = 0.1 m (LOW RES):
-     * dt_max = 0.707 * 0.1 / 343 ≈ 2.06e-4 s ≈ 206 μs
+     * With c = 343 m/s, dx = 0.025 m (BALANCED):
+     * dt_max = 0.707 * 0.025 / 343 ≈ 5.2e-5 s ≈ 52 μs
      *
-     * At 60 FPS (dt_frame ≈ 0.0167 s), we need ~81 sub-steps
+     * At 60 FPS (dt_frame ≈ 0.0167 s), we need ~324 sub-steps
      */
 
     // Clear listener sample buffer at start of frame
@@ -208,7 +207,7 @@ void WaveSimulation::updateStep(float dt) {
     // Sample audio sources and inject into pressure field
     // This must happen BEFORE the wave propagation step
     // OPTIMIZED: Single-point injection at sub-step rate for continuous audio
-    // With low resolution (10 cm/pixel), wave propagation naturally handles spreading
+    // With balanced resolution (2.5 cm/pixel), wave propagation naturally handles spreading
     for (auto& source : audioSources) {
         if (source && source->isPlaying()) {
             // Pass simulation timestep - audio speed matches simulation speed
@@ -385,8 +384,8 @@ void WaveSimulation::addPressureSource(int x, int y, float pressureAmplitude) {
     }
 
     // Create a compact, smooth impulse
-    // With 1 pixel = 10 cm, radius of 1 pixel = 10 cm (realistic hand clap size)
-    const int sourceRadius = 1;  // 1 pixel × 10 cm/pixel = 10 cm
+    // With 1 pixel = 2.5 cm, radius of 2 pixels = 5 cm (realistic hand clap size)
+    const int sourceRadius = 2;  // 2 pixels × 2.5 cm/pixel = 5 cm
     const float sigma = 2.5f;  // Gaussian width for smoothness
 
     for (int dy = -sourceRadius; dy <= sourceRadius; dy++) {
