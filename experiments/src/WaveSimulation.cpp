@@ -49,16 +49,16 @@ WaveSimulation::WaveSimulation(int width, int height)
     }
 
     /*
-     * PHYSICAL UNITS AND SCALE (LOW RESOLUTION):
+     * PHYSICAL UNITS AND SCALE (SMALL ROOM):
      * -----------------------------------------------
      * Coordinate system: 1 pixel = 10 cm = 100 mm = 0.1 m
      *
-     * For 200x100 grid (W x H):
-     * - Physical room size: 20m x 10m (width x height)
+     * For 50x25 grid (W x H):
+     * - Physical room size: 5m x 2.5m (width x height)
      * - Aspect ratio: 2:1 (rectangular room)
-     * - Grid cells: 20,000 (16× fewer than balanced!)
+     * - Grid cells: 1,250 (tiny room for testing high resolution later!)
      * - Max frequency: f_max = c/(2*dx) = 343/0.2 = 1.715 kHz
-     * - Memory: ~0.23 MB for 3 pressure fields
+     * - Memory: ~15 KB for 3 pressure fields
      *
      * Physical constants (air at 20°C, 1 atm):
      * - Speed of sound: c = 343 m/s
@@ -68,13 +68,14 @@ WaveSimulation::WaveSimulation(int width, int height)
      * The pressure field represents acoustic pressure p (Pa),
      * which is the deviation from atmospheric pressure P₀.
      *
-     * LOW RESOLUTION BENEFITS:
-     * - Extremely fast performance - ~16× fewer cells to compute
-     * - Very low memory usage (~230 KB)
-     * - Minimal sub-steps needed (~81 per frame instead of 324)
-     * - Smooth 60+ FPS on all hardware
-     * - Good for debugging and rapid iteration
-     * - Limited audio quality: telephone/AM radio range (~1.7 kHz max)
+     * SMALL ROOM BENEFITS:
+     * - Ultra-fast performance - only 1,250 cells!
+     * - Minimal memory usage (~15 KB)
+     * - Very few sub-steps needed (~81 per frame)
+     * - Perfect for testing high-resolution settings (8.6mm for 20 kHz)
+     * - Tiny room allows us to increase resolution dramatically
+     * - Current: 10cm resolution (1.7 kHz max)
+     * - Next step: 8.6mm resolution for full 20 kHz audio range!
      */
 }
 
