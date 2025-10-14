@@ -193,13 +193,13 @@ void SimulationEngine::printInitializationInfo() {
     std::cout << "  L: Load SVG room layout" << std::endl;
     std::cout << "  SPACE: Clear waves" << std::endl;
     std::cout << "  +/- or [/]: Adjust time scale (slow motion)" << std::endl;
-    std::cout << "  1: 20x slower | 0: real-time" << std::endl;
+    std::cout << "  1: 20x slower | 0: max speed (0.25x)" << std::endl;
     std::cout << "  UP/DOWN: Adjust sound speed" << std::endl;
     std::cout << "  LEFT/RIGHT: Adjust air absorption" << std::endl;
     std::cout << "  H: Toggle help overlay" << std::endl;
     std::cout << "  ESC: Exit" << std::endl;
     std::cout << "=========================================\n" << std::endl;
-    std::cout << "Starting at 100x slower for audible sound (press '0' for real-time)\n" << std::endl;
+    std::cout << "Starting at 100x slower for audible sound (press '0' for max speed: 0.25x)\n" << std::endl;
 }
 
 void SimulationEngine::run() {

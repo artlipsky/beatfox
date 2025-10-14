@@ -299,7 +299,7 @@ void SimulationUI::renderControlsPanel() {
     ImGui::BulletText("Shift+[/]: Obstacle size (%d px)", obstacleRadius);
     ImGui::BulletText("SPACE: Clear waves");
     ImGui::BulletText("+/- or [/]: Time speed");
-    ImGui::BulletText("1: 20x slower | 0: real-time");
+    ImGui::BulletText("1: 20x slower | 0: max speed (0.25x)");
     ImGui::BulletText("UP/DOWN: Sound speed");
     ImGui::BulletText("Shift+UP/DOWN: Volume");
     ImGui::BulletText("M: Mute audio (%s)", (audioOutput && audioOutput->isMuted()) ? "ON" : "OFF");

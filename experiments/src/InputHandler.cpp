@@ -372,9 +372,9 @@ void InputHandler::handleKey(GLFWwindow* window, int key, int scancode, int acti
                     std::cout << std::endl;
                 }
                 break;
-            case GLFW_KEY_0:  // Reset to real-time
-                timeScale = 1.0f;
-                std::cout << "Time scale: 1.0x (real-time)" << std::endl;
+            case GLFW_KEY_0:  // Maximum speed (limited for stability)
+                timeScale = 0.25f;
+                std::cout << "Time scale: 0.25x (4x slower - max speed)" << std::endl;
                 break;
             case GLFW_KEY_1:  // 20x slower
                 timeScale = 0.05f;
