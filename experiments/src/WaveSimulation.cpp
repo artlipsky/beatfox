@@ -16,7 +16,7 @@ WaveSimulation::WaveSimulation(int width, int height)
       ,
       wallReflection(0.85f)  // Wall reflection coefficient (15% energy loss per reflection)
       ,
-      dx(0.025f)  // Spatial grid spacing: 1 pixel = 2.5 cm = 0.025 m (BALANCED)
+      dx(0.1f)  // Spatial grid spacing: 1 pixel = 10 cm = 0.1 m (LOW RES)
       ,
       currentPreset(DampingPreset::fromType(
           DampingPreset::Type::REALISTIC))  // Initialize with realistic preset
@@ -49,16 +49,16 @@ WaveSimulation::WaveSimulation(int width, int height)
     }
 
     /*
-     * PHYSICAL UNITS AND SCALE (BALANCED RESOLUTION):
+     * PHYSICAL UNITS AND SCALE (LOW RESOLUTION):
      * -----------------------------------------------
-     * Coordinate system: 1 pixel = 2.5 cm = 25 mm = 0.025 m
+     * Coordinate system: 1 pixel = 10 cm = 100 mm = 0.1 m
      *
-     * For 800x400 grid (W x H):
+     * For 200x100 grid (W x H):
      * - Physical room size: 20m x 10m (width x height)
      * - Aspect ratio: 2:1 (rectangular room)
-     * - Grid cells: 320,000
-     * - Max frequency: f_max = c/(2*dx) = 343/0.050 = 6.86 kHz
-     * - Memory: ~3.7 MB for 3 pressure fields
+     * - Grid cells: 20,000 (16× fewer than balanced!)
+     * - Max frequency: f_max = c/(2*dx) = 343/0.2 = 1.715 kHz
+     * - Memory: ~0.23 MB for 3 pressure fields
      *
      * Physical constants (air at 20°C, 1 atm):
      * - Speed of sound: c = 343 m/s
@@ -68,11 +68,13 @@ WaveSimulation::WaveSimulation(int width, int height)
      * The pressure field represents acoustic pressure p (Pa),
      * which is the deviation from atmospheric pressure P₀.
      *
-     * BALANCED RESOLUTION BENEFITS:
-     * - Supports frequencies up to 6.8 kHz (covers most music content)
-     * - Good balance between audio quality and performance
-     * - ~3× faster than ultra-high resolution
-     * - GPU can maintain 60 FPS with audio sources
+     * LOW RESOLUTION BENEFITS:
+     * - Extremely fast performance - ~16× fewer cells to compute
+     * - Very low memory usage (~230 KB)
+     * - Minimal sub-steps needed (~81 per frame instead of 324)
+     * - Smooth 60+ FPS on all hardware
+     * - Good for debugging and rapid iteration
+     * - Limited audio quality: telephone/AM radio range (~1.7 kHz max)
      */
 }
 
@@ -88,10 +90,10 @@ void WaveSimulation::update(float dt_frame) {
      * Numerical stability (CFL condition):
      * c * dt / dx < 1/√2 ≈ 0.707 (in 2D)
      *
-     * With c = 343 m/s, dx = 0.025 m (BALANCED):
-     * dt_max = 0.707 * 0.025 / 343 ≈ 5.2e-5 s ≈ 52 μs
+     * With c = 343 m/s, dx = 0.1 m (LOW RES):
+     * dt_max = 0.707 * 0.1 / 343 ≈ 2.06e-4 s ≈ 206 μs
      *
-     * At 60 FPS (dt_frame ≈ 0.0167 s), we need ~324 sub-steps
+     * At 60 FPS (dt_frame ≈ 0.0167 s), we need ~81 sub-steps
      */
 
     // Clear listener sample buffer at start of frame
@@ -205,7 +207,7 @@ void WaveSimulation::updateStep(float dt) {
     // Sample audio sources and inject into pressure field
     // This must happen BEFORE the wave propagation step
     // OPTIMIZED: Single-point injection at sub-step rate for continuous audio
-    // With high resolution (1.7 cm/pixel), wave propagation naturally handles spreading
+    // With low resolution (10 cm/pixel), wave propagation naturally handles spreading
     for (auto& source : audioSources) {
         if (source && source->isPlaying()) {
             // Pass simulation timestep - audio speed matches simulation speed
@@ -382,8 +384,8 @@ void WaveSimulation::addPressureSource(int x, int y, float pressureAmplitude) {
     }
 
     // Create a compact, smooth impulse
-    // With 1 pixel = 5 cm, radius of 2 pixels = 10 cm (realistic hand clap size)
-    const int sourceRadius = 2;  // 2 pixels × 5 cm/pixel = 10 cm
+    // With 1 pixel = 10 cm, radius of 1 pixel = 10 cm (realistic hand clap size)
+    const int sourceRadius = 1;  // 1 pixel × 10 cm/pixel = 10 cm
     const float sigma = 2.5f;  // Gaussian width for smoothness
 
     for (int dy = -sourceRadius; dy <= sourceRadius; dy++) {
