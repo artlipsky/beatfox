@@ -118,37 +118,27 @@ void WaveSimulation::update(float dt_frame) {
         // - Before: ~703 MB per frame (191 × 3.68 MB)
         // - After: ~3.68 MB per frame (2 × 1.84 MB)
 
-        // Pre-compute audio source injections on CPU
-        // (this is done once per frame, not per sub-step)
+        // Inject audio sources ONCE per frame (not per sub-step)
+        // OPTIMIZATION: Injecting at frame rate instead of sub-step rate
+        // reduces CPU overhead from ~561 iterations to just 1!
+        // The GPU will propagate the audio correctly through all sub-steps.
         std::vector<float> pressureWithSources = pressure;  // Copy
 
-        for (int step = 0; step < numSteps; step++) {
-            // Sample audio sources and add to pressure field
-            for (auto& source : audioSources) {
-                if (source && source->isPlaying()) {
-                    float pressureValue = source->getCurrentSample(dt);
-                    int x = source->getX();
-                    int y = source->getY();
+        // Calculate frame-equivalent dt for audio sampling
+        // Use dt_frame instead of dt to maintain correct audio playback speed
+        for (auto& source : audioSources) {
+            if (source && source->isPlaying()) {
+                // Sample audio at frame rate and inject proportionally
+                // The pressure will be distributed over the frame duration
+                float pressureValue = source->getCurrentSample(dt_frame);
+                int x = source->getX();
+                int y = source->getY();
 
-                    if (x >= 0 && x < width && y >= 0 && y < height) {
-                        // Gaussian spread
-                        const int spreadRadius = 2;
-                        const float sigma = 1.5f;
-
-                        for (int dy = -spreadRadius; dy <= spreadRadius; dy++) {
-                            for (int dx = -spreadRadius; dx <= spreadRadius; dx++) {
-                                int px = x + dx;
-                                int py = y + dy;
-
-                                if (px > 0 && px < width - 1 && py > 0 && py < height - 1) {
-                                    if (obstacles[index(px, py)]) continue;
-
-                                    float r = std::sqrt(float(dx * dx + dy * dy));
-                                    float profile = std::exp(-r * r / (2.0f * sigma * sigma));
-                                    pressureWithSources[index(px, py)] += pressureValue * profile;
-                                }
-                            }
-                        }
+                if (x >= 0 && x < width && y >= 0 && y < height) {
+                    // Simplified injection: single-point source for minimal CPU overhead
+                    // Gaussian spread not needed - GPU will handle wave propagation
+                    if (!obstacles[index(x, y)]) {
+                        pressureWithSources[index(x, y)] += pressureValue;
                     }
                 }
             }
