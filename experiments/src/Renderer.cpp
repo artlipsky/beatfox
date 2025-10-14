@@ -28,6 +28,10 @@ Renderer::~Renderer() {
     if (VBO) glDeleteBuffers(1, &VBO);
     if (EBO) glDeleteBuffers(1, &EBO);
     if (shaderProgram) glDeleteProgram(shaderProgram);
+
+    if (gridVAO) glDeleteVertexArrays(1, &gridVAO);
+    if (gridVBO) glDeleteBuffers(1, &gridVBO);
+    if (gridShaderProgram) glDeleteProgram(gridShaderProgram);
 }
 
 bool Renderer::initialize() {
@@ -38,6 +42,12 @@ bool Renderer::initialize() {
 
     glUseProgram(shaderProgram);
     projectionLoc = glGetUniformLocation(shaderProgram, "projection");
+
+    // Load grid shaders
+    if (!loadGridShaders()) {
+        std::cerr << "Failed to load grid shaders" << std::endl;
+        return false;
+    }
 
     // Enable blending for transparency
     glEnable(GL_BLEND);
@@ -160,6 +170,11 @@ void Renderer::render(const WaveSimulation& simulation) {
     glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, 0);
     glBindVertexArray(0);
 
+    // Draw grid overlay
+    if (gridEnabled) {
+        renderGrid(gridWidth, gridHeight);
+    }
+
     // Reset viewport to full window for UI rendering
     glViewport(0, 0, windowWidth, windowHeight);
 }
@@ -266,4 +281,125 @@ bool Renderer::loadShaders() {
     glDeleteShader(fragmentShader);
 
     return true;
+}
+
+bool Renderer::loadGridShaders() {
+    // Simple vertex shader for grid lines
+    const char* gridVertexSource = R"(
+        #version 330 core
+        layout (location = 0) in vec2 aPos;
+        uniform mat4 projection;
+        void main() {
+            gl_Position = projection * vec4(aPos, 0.0, 1.0);
+        }
+    )";
+
+    // Simple fragment shader for grid lines
+    const char* gridFragmentSource = R"(
+        #version 330 core
+        out vec4 FragColor;
+        void main() {
+            // Light gray with low opacity (0.9, 0.9, 0.9, 0.15)
+            FragColor = vec4(0.9, 0.9, 0.9, 0.15);
+        }
+    )";
+
+    GLuint vertexShader = compileShader(GL_VERTEX_SHADER, gridVertexSource);
+    GLuint fragmentShader = compileShader(GL_FRAGMENT_SHADER, gridFragmentSource);
+
+    if (!vertexShader || !fragmentShader) {
+        return false;
+    }
+
+    gridShaderProgram = glCreateProgram();
+    glAttachShader(gridShaderProgram, vertexShader);
+    glAttachShader(gridShaderProgram, fragmentShader);
+    glLinkProgram(gridShaderProgram);
+
+    int success;
+    glGetProgramiv(gridShaderProgram, GL_LINK_STATUS, &success);
+    if (!success) {
+        char infoLog[512];
+        glGetProgramInfoLog(gridShaderProgram, 512, nullptr, infoLog);
+        std::cerr << "Grid shader linking failed: " << infoLog << std::endl;
+        return false;
+    }
+
+    glDeleteShader(vertexShader);
+    glDeleteShader(fragmentShader);
+
+    // Get uniform locations
+    gridProjectionLoc = glGetUniformLocation(gridShaderProgram, "projection");
+
+    return true;
+}
+
+void Renderer::setupGridBuffers(int gridWidth, int gridHeight) {
+    // Clean up old buffers if they exist
+    if (gridVAO) glDeleteVertexArrays(1, &gridVAO);
+    if (gridVBO) glDeleteBuffers(1, &gridVBO);
+
+    std::vector<float> gridVertices;
+
+    // Generate vertical grid lines (along X axis)
+    for (int x = 0; x <= gridWidth; x += gridSpacing) {
+        float px = 2.0f * x / (gridWidth - 1) - 1.0f;
+        // Line from bottom to top
+        gridVertices.push_back(px);
+        gridVertices.push_back(-1.0f);
+        gridVertices.push_back(px);
+        gridVertices.push_back(1.0f);
+    }
+
+    // Generate horizontal grid lines (along Y axis)
+    for (int y = 0; y <= gridHeight; y += gridSpacing) {
+        float py = 2.0f * y / (gridHeight - 1) - 1.0f;
+        // Line from left to right
+        gridVertices.push_back(-1.0f);
+        gridVertices.push_back(py);
+        gridVertices.push_back(1.0f);
+        gridVertices.push_back(py);
+    }
+
+    // Create and bind VAO
+    glGenVertexArrays(1, &gridVAO);
+    glBindVertexArray(gridVAO);
+
+    // Create and bind VBO
+    glGenBuffers(1, &gridVBO);
+    glBindBuffer(GL_ARRAY_BUFFER, gridVBO);
+    glBufferData(GL_ARRAY_BUFFER, gridVertices.size() * sizeof(float), gridVertices.data(), GL_STATIC_DRAW);
+
+    // Position attribute (location = 0)
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+
+    glBindVertexArray(0);
+}
+
+void Renderer::renderGrid(int gridWidth, int gridHeight) {
+    // Setup grid buffers if not already done
+    if (gridVAO == 0) {
+        setupGridBuffers(gridWidth, gridHeight);
+    }
+
+    // Use grid shader
+    glUseProgram(gridShaderProgram);
+
+    // Set projection matrix
+    glm::mat4 projection = glm::ortho(-1.0f, 1.0f, -1.0f, 1.0f, -1.0f, 1.0f);
+    glUniformMatrix4fv(gridProjectionLoc, 1, GL_FALSE, &projection[0][0]);
+
+    // Grid color is hardcoded in the shader (light gray with low opacity)
+
+    // Draw grid lines
+    glBindVertexArray(gridVAO);
+
+    // Calculate number of lines to draw
+    int numVerticalLines = (gridWidth / gridSpacing) + 1;
+    int numHorizontalLines = (gridHeight / gridSpacing) + 1;
+    int totalLines = numVerticalLines + numHorizontalLines;
+
+    glDrawArrays(0x0001, 0, totalLines * 2);  // 0x0001 = GL_LINES
+    glBindVertexArray(0);
 }
