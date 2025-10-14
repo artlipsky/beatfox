@@ -128,6 +128,34 @@ void InputHandler::handleMouseButton(GLFWwindow* window, int button, int action,
                     }
                 }
 
+                // Check if clicking on existing audio source for play/pause toggle
+                const auto& audioSources = simulation->getAudioSources();
+                for (size_t i = 0; i < audioSources.size(); i++) {
+                    AudioSource* source = simulation->getAudioSource(i);
+                    if (!source) continue;
+
+                    int sourceX = source->getX();
+                    int sourceY = source->getY();
+
+                    // Check if click is within source radius (use Manhattan distance)
+                    int dx = gridX - sourceX;
+                    int dy = gridY - sourceY;
+                    int distSquared = dx * dx + dy * dy;
+                    const int sourceRadiusSquared = 10 * 10;  // 10 pixel radius
+
+                    if (distSquared <= sourceRadiusSquared) {
+                        // Toggle play/pause state
+                        if (source->isPlaying()) {
+                            source->pause();
+                            std::cout << "Audio source " << i << " paused" << std::endl;
+                        } else {
+                            source->resume();
+                            std::cout << "Audio source " << i << " resumed" << std::endl;
+                        }
+                        return;  // Don't process other actions
+                    }
+                }
+
                 if (listenerMode) {
                     // Place listener (virtual microphone)
                     simulation->setListenerPosition(gridX, gridY);
