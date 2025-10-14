@@ -79,6 +79,10 @@ private:
     int gridWidth;
     int gridHeight;
 
+    // Performance tracking for adaptive frame skipping
+    double lastFrameTime;
+    double simulationTimeBudget;
+
     // Initialization helpers
     bool initializeSubsystems();
     void printInitializationInfo();

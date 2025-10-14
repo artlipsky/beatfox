@@ -27,6 +27,8 @@ SimulationEngine::SimulationEngine(Application& app)
     , loadedSample(nullptr)
     , gridWidth(800)   // 20m / 0.025m = 800 pixels (BALANCED: 6.8 kHz support)
     , gridHeight(400)  // 10m / 0.025m = 400 pixels
+    , lastFrameTime(0.0)
+    , simulationTimeBudget(0.014)  // 14ms budget for simulation (leaves 2.7ms for rendering at 60 FPS)
 {
 }
 
@@ -204,10 +206,20 @@ void SimulationEngine::run() {
     GLFWwindow* window = application.getWindow();
 
     while (!glfwWindowShouldClose(window)) {
-        // Update simulation with fixed timestep
-        update();
+        // Adaptive frame skipping: Only update simulation if we have time budget
+        // This keeps UI responsive even when simulation is slow
+        if (lastFrameTime < simulationTimeBudget) {
+            auto simStart = std::chrono::high_resolution_clock::now();
+            update();
+            auto simEnd = std::chrono::high_resolution_clock::now();
+            lastFrameTime = std::chrono::duration<double>(simEnd - simStart).count();
+        } else {
+            // Skip simulation update to maintain UI responsiveness
+            // Still consume frame time for smoother behavior
+            lastFrameTime *= 0.95;  // Decay to allow recovery
+        }
 
-        // Render
+        // Always render UI (keeps it responsive)
         render();
 
         // Swap buffers and poll events
