@@ -25,8 +25,8 @@ SimulationEngine::SimulationEngine(Application& app)
     , sourceVolumeDb(0.0f)
     , sourceLoop(true)
     , loadedSample(nullptr)
-    , gridWidth(1176)   // 20m / 0.017m = 1176 pixels (HIGH RES: 10 kHz support)
-    , gridHeight(588)  // 10m / 0.017m = 588 pixels
+    , gridWidth(800)   // 20m / 0.025m = 800 pixels (BALANCED: 6.8 kHz support)
+    , gridHeight(400)  // 10m / 0.025m = 400 pixels
 {
 }
 
@@ -88,10 +88,10 @@ bool SimulationEngine::initialize() {
 bool SimulationEngine::initializeSubsystems() {
     GLFWwindow* window = application.getWindow();
 
-    // Create simulation (HIGH RESOLUTION)
+    // Create simulation (BALANCED RESOLUTION)
     // Room: 10m (height) x 20m (width)
-    // Scale: 1 pixel = 1.7 cm = 0.017 m
-    // Max frequency: f_max = c / (2*dx) = 343 / 0.034 = 10.1 kHz
+    // Scale: 1 pixel = 2.5 cm = 0.025 m
+    // Max frequency: f_max = c / (2*dx) = 343 / 0.050 = 6.86 kHz
     simulation = std::make_unique<WaveSimulation>(gridWidth, gridHeight);
 
     // Initialize audio output
@@ -163,9 +163,9 @@ void SimulationEngine::printInitializationInfo() {
     std::cout << "\nPhysical dimensions:" << std::endl;
     std::cout << "  Window: " << winWidth << " x " << winHeight << " (window coords)" << std::endl;
     std::cout << "  Framebuffer: " << windowWidth << " x " << windowHeight << " (framebuffer coords)" << std::endl;
-    std::cout << "  Grid: " << gridWidth << " x " << gridHeight << " pixels (W x H) [HIGH RES]" << std::endl;
-    std::cout << "  Scale: 1 pixel = 1.7 cm = 17 mm" << std::endl;
-    std::cout << "  Max frequency: ~10 kHz (Nyquist limit - recognizable music!)" << std::endl;
+    std::cout << "  Grid: " << gridWidth << " x " << gridHeight << " pixels (W x H) [BALANCED]" << std::endl;
+    std::cout << "  Scale: 1 pixel = 2.5 cm = 25 mm" << std::endl;
+    std::cout << "  Max frequency: ~6.8 kHz (Nyquist limit - good music quality)" << std::endl;
     std::cout << "  Memory: ~" << (gridWidth * gridHeight * 3 * 4 / 1024 / 1024) << " MB for pressure fields" << std::endl;
     std::cout << "  Room size: " << simulation->getPhysicalWidth() << " m x "
               << simulation->getPhysicalHeight() << " m (W x H)" << std::endl;
