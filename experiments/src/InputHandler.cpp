@@ -10,6 +10,7 @@
 #include <imgui_impl_glfw.h>
 #include <iostream>
 #include <algorithm>
+#include <cmath>
 
 InputHandler::InputHandler(
     WaveSimulation* sim,
@@ -110,22 +111,21 @@ void InputHandler::handleMouseButton(GLFWwindow* window, int button, int action,
 
             int gridX, gridY;
             if (screenToGrid(xpos, ypos, gridX, gridY)) {
-                // Check if clicking on existing listener for dragging
-                if (simulation->hasListener()) {
-                    int listenerX, listenerY;
-                    simulation->getListenerPosition(listenerX, listenerY);
+                // Check if clicking on listener position for toggle or dragging
+                // Note: Always check listener position, even if disabled, so we can re-enable by clicking
+                int listenerX, listenerY;
+                simulation->getListenerPosition(listenerX, listenerY);
 
-                    // Check if click is within listener radius (use Manhattan distance for simplicity)
-                    int dx = gridX - listenerX;
-                    int dy = gridY - listenerY;
-                    int distSquared = dx * dx + dy * dy;
-                    const int listenerRadiusSquared = 10 * 10;  // 10 pixel radius
+                // Check if click is within listener radius (use Manhattan distance for simplicity)
+                int dx = gridX - listenerX;
+                int dy = gridY - listenerY;
+                int distSquared = dx * dx + dy * dy;
+                const int listenerRadiusSquared = 10 * 10;  // 10 pixel radius
 
-                    if (distSquared <= listenerRadiusSquared) {
-                        // Start dragging the listener
-                        draggingListener = true;
-                        return;  // Don't process other actions
-                    }
+                if (distSquared <= listenerRadiusSquared) {
+                    // Start tracking for potential drag or toggle
+                    draggingListener = true;
+                    return;  // Don't process other actions
                 }
 
                 // Check if clicking on existing audio source for play/pause toggle
@@ -199,6 +199,28 @@ void InputHandler::handleMouseButton(GLFWwindow* window, int button, int action,
                 }
             }
         } else if (action == GLFW_RELEASE) {
+            // Check if we were dragging the listener
+            if (draggingListener && simulation) {
+                // Get current mouse position
+                double xpos, ypos;
+                glfwGetCursorPos(window, &xpos, &ypos);
+
+                // Calculate distance moved (in screen pixels)
+                double dx = xpos - lastMouseX;
+                double dy = ypos - lastMouseY;
+                double distanceMoved = std::sqrt(dx * dx + dy * dy);
+
+                // If mouse barely moved, treat it as a click (toggle)
+                // Otherwise, it was a drag (already handled)
+                const double clickThreshold = 5.0;  // 5 pixels
+                if (distanceMoved < clickThreshold) {
+                    // Toggle listener enabled/disabled
+                    bool currentlyEnabled = simulation->hasListener();
+                    simulation->setListenerEnabled(!currentlyEnabled);
+                    std::cout << "Listener " << (currentlyEnabled ? "disabled" : "enabled") << std::endl;
+                }
+            }
+
             mousePressed = false;
             draggingListener = false;  // Stop dragging listener
         }
