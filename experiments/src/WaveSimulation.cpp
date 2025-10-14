@@ -107,42 +107,26 @@ void WaveSimulation::update(float dt_frame) {
     // ========================================================================
     // OPTIMIZED GPU PATH: Execute all sub-steps on GPU without CPU round-trip
     // ========================================================================
-    if (useGPU && metalBackend.isAvailable()) {
+    // NOTE: GPU path doesn't support continuous audio injection yet
+    // Fall back to CPU when audio sources are playing
+    bool hasActiveAudioSources = false;
+    for (const auto& source : audioSources) {
+        if (source && source->isPlaying()) {
+            hasActiveAudioSources = true;
+            break;
+        }
+    }
+
+    if (useGPU && metalBackend.isAvailable() && !hasActiveAudioSources) {
         // CRITICAL OPTIMIZATION:
-        // Instead of copying CPU↔GPU for each sub-step (~191 times per frame),
+        // Instead of copying CPU↔GPU for each sub-step (~477 times per frame),
         // we keep data on GPU for the entire frame and copy only twice:
         // 1. Initial state → GPU
         // 2. Final state + listener samples ← GPU
         //
         // Performance: 382× reduction in memory bandwidth!
-        // - Before: ~703 MB per frame (191 × 3.68 MB)
-        // - After: ~3.68 MB per frame (2 × 1.84 MB)
-
-        // Inject audio sources ONCE per frame (not per sub-step)
-        // OPTIMIZATION: Injecting at frame rate instead of sub-step rate
-        // reduces CPU overhead from ~561 iterations to just 1!
-        // The GPU will propagate the audio correctly through all sub-steps.
-        std::vector<float> pressureWithSources = pressure;  // Copy
-
-        // Calculate frame-equivalent dt for audio sampling
-        // Use dt_frame instead of dt to maintain correct audio playback speed
-        for (auto& source : audioSources) {
-            if (source && source->isPlaying()) {
-                // Sample audio at frame rate and inject proportionally
-                // The pressure will be distributed over the frame duration
-                float pressureValue = source->getCurrentSample(dt_frame);
-                int x = source->getX();
-                int y = source->getY();
-
-                if (x >= 0 && x < width && y >= 0 && y < height) {
-                    // Simplified injection: single-point source for minimal CPU overhead
-                    // Gaussian spread not needed - GPU will handle wave propagation
-                    if (!obstacles[index(x, y)]) {
-                        pressureWithSources[index(x, y)] += pressureValue;
-                    }
-                }
-            }
-        }
+        // This path is only used when NO audio sources are playing
+        // (audio injection requires per-sub-step CPU processing)
 
         // Execute all sub-steps on GPU
         const float c2_dt2_dx2 = (soundSpeed * soundSpeed * dt * dt) / (dx * dx);
@@ -151,7 +135,7 @@ void WaveSimulation::update(float dt_frame) {
         std::vector<float> finalPressurePrev;
 
         metalBackend.executeFrame(
-            pressureWithSources,  // Initial current pressure (with audio sources)
+            pressure,             // Initial current pressure
             pressurePrev,         // Initial previous pressure
             finalPressure,        // Output: final current pressure
             finalPressurePrev,    // Output: final previous pressure
@@ -205,8 +189,8 @@ void WaveSimulation::updateStep(float dt) {
 
     // Sample audio sources and inject into pressure field
     // This must happen BEFORE the wave propagation step
-    // CRITICAL FIX: Now called at sub-step rate (~11 kHz) instead of frame rate (60 Hz)
-    // This preserves high-frequency audio content!
+    // OPTIMIZED: Single-point injection at sub-step rate for continuous audio
+    // With high resolution (1.7 cm/pixel), wave propagation naturally handles spreading
     for (auto& source : audioSources) {
         if (source && source->isPlaying()) {
             // Pass simulation timestep - audio speed matches simulation speed
@@ -216,28 +200,10 @@ void WaveSimulation::updateStep(float dt) {
             int y = source->getY();
 
             // Check bounds
-            if (x >= 0 && x < width && y >= 0 && y < height) {
-                // Add pressure at source location
-                // Using Gaussian spread to avoid sharp discontinuity
-                const int spreadRadius = 2;
-                const float sigma = 1.5f;
-
-                for (int dy = -spreadRadius; dy <= spreadRadius; dy++) {
-                    for (int dx = -spreadRadius; dx <= spreadRadius; dx++) {
-                        int px = x + dx;
-                        int py = y + dy;
-
-                        if (px > 0 && px < width - 1 && py > 0 && py < height - 1) {
-                            if (obstacles[index(px, py)]) {
-                                continue;  // Don't add pressure to obstacles
-                            }
-
-                            float r = std::sqrt(float(dx * dx + dy * dy));
-                            float profile = std::exp(-r * r / (2.0f * sigma * sigma));
-
-                            pressure[index(px, py)] += pressureValue * profile;
-                        }
-                    }
+            if (x > 0 && x < width - 1 && y > 0 && y < height - 1) {
+                // Single-point injection: fast and effective with high resolution
+                if (!obstacles[index(x, y)]) {
+                    pressure[index(x, y)] += pressureValue;
                 }
             }
         }
