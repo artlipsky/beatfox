@@ -107,17 +107,7 @@ void WaveSimulation::update(float dt_frame) {
     // ========================================================================
     // OPTIMIZED GPU PATH: Execute all sub-steps on GPU without CPU round-trip
     // ========================================================================
-    // NOTE: GPU path doesn't support continuous audio injection yet
-    // Fall back to CPU when audio sources are playing
-    bool hasActiveAudioSources = false;
-    for (const auto& source : audioSources) {
-        if (source && source->isPlaying()) {
-            hasActiveAudioSources = true;
-            break;
-        }
-    }
-
-    if (useGPU && metalBackend.isAvailable() && !hasActiveAudioSources) {
+    if (useGPU && metalBackend.isAvailable()) {
         // CRITICAL OPTIMIZATION:
         // Instead of copying CPU↔GPU for each sub-step (~477 times per frame),
         // we keep data on GPU for the entire frame and copy only twice:
@@ -125,10 +115,33 @@ void WaveSimulation::update(float dt_frame) {
         // 2. Final state + listener samples ← GPU
         //
         // Performance: 382× reduction in memory bandwidth!
-        // This path is only used when NO audio sources are playing
-        // (audio injection requires per-sub-step CPU processing)
+        // NEW: Supports continuous audio injection on GPU!
 
-        // Execute all sub-steps on GPU
+        // Pre-sample audio sources for ALL sub-steps (on CPU)
+        // This is done once per frame, then passed to GPU for injection at each sub-step
+        std::vector<std::vector<MetalSimulationBackend::AudioSourceData>> audioSourcesPerStep(numSteps);
+
+        for (int step = 0; step < numSteps; step++) {
+            for (auto& source : audioSources) {
+                if (source && source->isPlaying()) {
+                    float pressureValue = source->getCurrentSample(dt);
+                    int x = source->getX();
+                    int y = source->getY();
+
+                    if (x > 0 && x < width - 1 && y > 0 && y < height - 1) {
+                        if (!obstacles[index(x, y)]) {
+                            MetalSimulationBackend::AudioSourceData sourceData;
+                            sourceData.x = x;
+                            sourceData.y = y;
+                            sourceData.pressure = pressureValue;
+                            audioSourcesPerStep[step].push_back(sourceData);
+                        }
+                    }
+                }
+            }
+        }
+
+        // Execute all sub-steps on GPU with audio injection
         const float c2_dt2_dx2 = (soundSpeed * soundSpeed * dt * dt) / (dx * dx);
 
         std::vector<float> finalPressure;
@@ -141,6 +154,7 @@ void WaveSimulation::update(float dt_frame) {
             finalPressurePrev,    // Output: final previous pressure
             obstacles,            // Obstacle mask
             listenerSampleBuffer, // Output: listener samples (all sub-steps)
+            audioSourcesPerStep,  // Audio source data for each sub-step
             listenerEnabled ? listenerX : -1,  // Listener X (-1 if disabled)
             listenerY,            // Listener Y
             numSteps,             // Number of sub-steps

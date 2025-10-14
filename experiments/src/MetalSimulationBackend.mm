@@ -36,6 +36,17 @@ struct MultiStepParams {
     int listenerX;
     int listenerY;
     int subStepIdx;
+    int numAudioSources;
+};
+
+/*
+ * Audio source data (per sub-step)
+ * Must match the struct in WaveEquation.metal
+ */
+struct AudioSourceData {
+    int x;
+    int y;
+    float pressure;
 };
 
 /*
@@ -62,6 +73,7 @@ public:
     id<MTLBuffer> tripleBuffer;         // 3x concatenated pressure buffers
     id<MTLBuffer> multiStepParamsBuffer; // Multi-step parameters
     id<MTLBuffer> listenerSamplesBuffer; // Listener samples output
+    id<MTLBuffer> audioSourcesBuffer;    // Audio source data (for injection)
 
     int width;
     int height;
@@ -87,6 +99,7 @@ public:
         tripleBuffer(nil),
         multiStepParamsBuffer(nil),
         listenerSamplesBuffer(nil),
+        audioSourcesBuffer(nil),
         width(0),
         height(0),
         gridSize(0),
@@ -109,6 +122,7 @@ public:
         tripleBuffer = nil;
         multiStepParamsBuffer = nil;
         listenerSamplesBuffer = nil;
+        audioSourcesBuffer = nil;
         computePipeline = nil;
         multiStepPipeline = nil;
         library = nil;
@@ -247,9 +261,16 @@ bool MetalSimulationBackend::initialize(int width, int height) {
     pImpl->listenerSamplesBuffer = [pImpl->device newBufferWithLength:listenerSamplesSize
                                                                options:MTLResourceStorageModeShared];
 
+    // Audio sources buffer (max 16 audio sources)
+    NSUInteger maxAudioSources = 16;
+    NSUInteger audioSourcesSize = maxAudioSources * sizeof(AudioSourceData);
+    pImpl->audioSourcesBuffer = [pImpl->device newBufferWithLength:audioSourcesSize
+                                                            options:MTLResourceStorageModeShared];
+
     if (!pImpl->pressureBuffer || !pImpl->pressurePrevBuffer || !pImpl->pressureNextBuffer ||
         !pImpl->obstaclesBuffer || !pImpl->paramsBuffer ||
-        !pImpl->tripleBuffer || !pImpl->multiStepParamsBuffer || !pImpl->listenerSamplesBuffer) {
+        !pImpl->tripleBuffer || !pImpl->multiStepParamsBuffer || !pImpl->listenerSamplesBuffer ||
+        !pImpl->audioSourcesBuffer) {
         lastError = "Failed to create Metal buffers";
         std::cerr << "MetalBackend: " << lastError << std::endl;
         return false;
@@ -340,6 +361,7 @@ void MetalSimulationBackend::executeFrame(
     std::vector<float>& finalPressurePrev,
     const std::vector<uint8_t>& obstacles,
     std::vector<float>& listenerSamples,
+    const std::vector<std::vector<AudioSourceData>>& audioSourcesPerStep,
     int listenerX,
     int listenerY,
     int numSubSteps,
@@ -377,6 +399,17 @@ void MetalSimulationBackend::executeFrame(
     int nextIdx = 2;     // Initial next
 
     for (int step = 0; step < numSubSteps; step++) {
+        // Get audio sources for this sub-step
+        int numAudioSources = 0;
+        if (step < static_cast<int>(audioSourcesPerStep.size())) {
+            numAudioSources = std::min(static_cast<int>(audioSourcesPerStep[step].size()), 16);
+            if (numAudioSources > 0) {
+                // Copy audio source data to GPU
+                AudioSourceData* audioSourcesPtr = (AudioSourceData*)[pImpl->audioSourcesBuffer contents];
+                memcpy(audioSourcesPtr, audioSourcesPerStep[step].data(), numAudioSources * sizeof(AudioSourceData));
+            }
+        }
+
         // Set up multi-step parameters
         MultiStepParams* params = (MultiStepParams*)[pImpl->multiStepParamsBuffer contents];
         params->width = pImpl->width;
@@ -391,6 +424,7 @@ void MetalSimulationBackend::executeFrame(
         params->listenerX = listenerX;
         params->listenerY = listenerY;
         params->subStepIdx = step;
+        params->numAudioSources = numAudioSources;
 
         // Create command buffer for this step
         id<MTLCommandBuffer> commandBuffer = [pImpl->commandQueue commandBuffer];
@@ -404,6 +438,7 @@ void MetalSimulationBackend::executeFrame(
         [computeEncoder setBuffer:pImpl->obstaclesBuffer offset:0 atIndex:1];
         [computeEncoder setBuffer:pImpl->listenerSamplesBuffer offset:0 atIndex:2];
         [computeEncoder setBuffer:pImpl->multiStepParamsBuffer offset:0 atIndex:3];
+        [computeEncoder setBuffer:pImpl->audioSourcesBuffer offset:0 atIndex:4];
 
         // Calculate thread groups (16x16 threads per group is optimal for M-series GPUs)
         MTLSize threadgroupSize = MTLSizeMake(16, 16, 1);
@@ -498,6 +533,7 @@ void MetalSimulationBackend::executeFrame(
     std::vector<float>&,
     const std::vector<uint8_t>&,
     std::vector<float>&,
+    const std::vector<std::vector<AudioSourceData>>&,
     int, int, int,
     float, float, float)
 {

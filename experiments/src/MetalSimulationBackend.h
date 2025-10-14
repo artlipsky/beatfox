@@ -64,6 +64,15 @@ public:
     );
 
     /*
+     * Audio source data for GPU injection
+     */
+    struct AudioSourceData {
+        int x;
+        int y;
+        float pressure;
+    };
+
+    /*
      * Execute multiple wave equation time steps on GPU (OPTIMIZED)
      *
      * KEY OPTIMIZATION: Data stays on GPU for entire frame!
@@ -75,12 +84,17 @@ public:
      * - Before: ~703 MB per frame (191 copies × 3.68 MB)
      * - After: ~3.68 MB per frame (2 copies × 1.84 MB)
      *
+     * NEW: Supports continuous audio injection on GPU!
+     * - Audio sources are pre-sampled on CPU for all sub-steps
+     * - GPU injects audio at each sub-step for continuous sound
+     *
      * @param initialPressure Initial current pressure field
      * @param initialPressurePrev Initial previous pressure field
      * @param finalPressure Output: final current pressure field
      * @param finalPressurePrev Output: final previous pressure field
      * @param obstacles Obstacle mask
      * @param listenerSamples Output: pressure samples at listener position
+     * @param audioSourcesPerStep Audio source data for each sub-step (numSubSteps × numSources)
      * @param listenerX Listener X coordinate (-1 if disabled)
      * @param listenerY Listener Y coordinate
      * @param numSubSteps Number of sub-steps to execute
@@ -95,6 +109,7 @@ public:
         std::vector<float>& finalPressurePrev,
         const std::vector<uint8_t>& obstacles,
         std::vector<float>& listenerSamples,
+        const std::vector<std::vector<AudioSourceData>>& audioSourcesPerStep,
         int listenerX,
         int listenerY,
         int numSubSteps,

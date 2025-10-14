@@ -41,6 +41,17 @@ struct MultiStepParams {
     int listenerX;             // Listener X coordinate (-1 if disabled)
     int listenerY;             // Listener Y coordinate
     int subStepIdx;            // Current sub-step index (for listener sampling)
+    int numAudioSources;       // Number of active audio sources
+};
+
+/*
+ * Audio source data (per sub-step)
+ * Pre-computed on CPU, passed to GPU for injection at each sub-step
+ */
+struct AudioSourceData {
+    int x;                     // Source X position
+    int y;                     // Source Y position
+    float pressure;            // Pressure value to inject
 };
 
 /*
@@ -189,6 +200,7 @@ kernel void multiStepWaveEquation(
     device const uint8_t* obstacles        [[buffer(1)]],    // Obstacle mask
     device float* listenerSamples          [[buffer(2)]],    // Output: listener samples
     constant MultiStepParams& params       [[buffer(3)]],    // Multi-step parameters
+    device const AudioSourceData* audioSources [[buffer(4)]], // Audio source data for this sub-step
     uint2 gid                              [[thread_position_in_grid]])
 {
     // Thread position = grid cell coordinates
@@ -207,6 +219,17 @@ kernel void multiStepWaveEquation(
     const int offset_current = params.currentIdx * gridSize;
     const int offset_prev = params.prevIdx * gridSize;
     const int offset_next = params.nextIdx * gridSize;
+
+    // Inject audio sources into current pressure field
+    // This happens BEFORE wave propagation for continuous sound
+    if (params.numAudioSources > 0) {
+        for (int i = 0; i < params.numAudioSources; i++) {
+            if (audioSources[i].x == x && audioSources[i].y == y) {
+                // Add pressure from this audio source
+                pressureBuffers[offset_current + idx] += audioSources[i].pressure;
+            }
+        }
+    }
 
     // Sample listener position BEFORE computing wave step
     // This captures the current pressure at the listener location
