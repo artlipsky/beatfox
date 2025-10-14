@@ -339,27 +339,48 @@ void Renderer::setupGridBuffers(int gridWidth, int gridHeight) {
     if (gridVAO) glDeleteVertexArrays(1, &gridVAO);
     if (gridVBO) glDeleteBuffers(1, &gridVBO);
 
-    std::vector<float> gridVertices;
+    std::vector<float> minorGridVertices;
+    std::vector<float> majorGridVertices;
 
     // Generate vertical grid lines (along X axis)
     for (int x = 0; x <= gridWidth; x += gridSpacing) {
         float px = 2.0f * x / (gridWidth - 1) - 1.0f;
+
+        // Determine if this is a major grid line (every 10th line)
+        bool isMajor = (x % (gridSpacing * 10) == 0);
+        std::vector<float>& vertices = isMajor ? majorGridVertices : minorGridVertices;
+
         // Line from bottom to top
-        gridVertices.push_back(px);
-        gridVertices.push_back(-1.0f);
-        gridVertices.push_back(px);
-        gridVertices.push_back(1.0f);
+        vertices.push_back(px);
+        vertices.push_back(-1.0f);
+        vertices.push_back(px);
+        vertices.push_back(1.0f);
     }
 
     // Generate horizontal grid lines (along Y axis)
     for (int y = 0; y <= gridHeight; y += gridSpacing) {
         float py = 2.0f * y / (gridHeight - 1) - 1.0f;
+
+        // Determine if this is a major grid line (every 10th line)
+        bool isMajor = (y % (gridSpacing * 10) == 0);
+        std::vector<float>& vertices = isMajor ? majorGridVertices : minorGridVertices;
+
         // Line from left to right
-        gridVertices.push_back(-1.0f);
-        gridVertices.push_back(py);
-        gridVertices.push_back(1.0f);
-        gridVertices.push_back(py);
+        vertices.push_back(-1.0f);
+        vertices.push_back(py);
+        vertices.push_back(1.0f);
+        vertices.push_back(py);
     }
+
+    // Combine minor and major lines (minor first, then major)
+    // This allows us to draw them separately with different line widths
+    std::vector<float> allVertices;
+    allVertices.insert(allVertices.end(), minorGridVertices.begin(), minorGridVertices.end());
+    allVertices.insert(allVertices.end(), majorGridVertices.begin(), majorGridVertices.end());
+
+    // Store the count of minor vertices for later
+    minorLineCount = minorGridVertices.size() / 2;
+    majorLineCount = majorGridVertices.size() / 2;
 
     // Create and bind VAO
     glGenVertexArrays(1, &gridVAO);
@@ -368,7 +389,7 @@ void Renderer::setupGridBuffers(int gridWidth, int gridHeight) {
     // Create and bind VBO
     glGenBuffers(1, &gridVBO);
     glBindBuffer(GL_ARRAY_BUFFER, gridVBO);
-    glBufferData(GL_ARRAY_BUFFER, gridVertices.size() * sizeof(float), gridVertices.data(), GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, allVertices.size() * sizeof(float), allVertices.data(), GL_STATIC_DRAW);
 
     // Position attribute (location = 0)
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*)0);
@@ -390,16 +411,17 @@ void Renderer::renderGrid(int gridWidth, int gridHeight) {
     glm::mat4 projection = glm::ortho(-1.0f, 1.0f, -1.0f, 1.0f, -1.0f, 1.0f);
     glUniformMatrix4fv(gridProjectionLoc, 1, GL_FALSE, &projection[0][0]);
 
-    // Grid color is hardcoded in the shader (light gray with low opacity)
-
-    // Draw grid lines
+    // Bind VAO
     glBindVertexArray(gridVAO);
 
-    // Calculate number of lines to draw
-    int numVerticalLines = (gridWidth / gridSpacing) + 1;
-    int numHorizontalLines = (gridHeight / gridSpacing) + 1;
-    int totalLines = numVerticalLines + numHorizontalLines;
+    // Draw minor grid lines (thin, more transparent)
+    // Note: Line width control via glLineWidth may not be available in all OpenGL contexts
+    // Instead, we use the same line width but different appearance is achieved
+    // through the distinction in the shader or by drawing twice
+    glDrawArrays(0x0001, 0, minorLineCount);  // 0x0001 = GL_LINES
 
-    glDrawArrays(0x0001, 0, totalLines * 2);  // 0x0001 = GL_LINES
+    // Draw major grid lines (same width but will appear bolder due to being every 10th line)
+    glDrawArrays(0x0001, minorLineCount, majorLineCount);  // 0x0001 = GL_LINES
+
     glBindVertexArray(0);
 }

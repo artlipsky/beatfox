@@ -48,6 +48,8 @@ private:
     GLuint gridVBO = 0;
     GLuint gridShaderProgram = 0;
     GLuint gridProjectionLoc = 0;
+    int minorLineCount = 0;  // Number of minor grid line vertices
+    int majorLineCount = 0;  // Number of major grid line vertices
 
     bool loadShaders();
     GLuint compileShader(GLenum type, const std::string& source);
