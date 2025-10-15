@@ -6,10 +6,10 @@
 //
 
 #import "SimulationControllerBridge.h"
-#include "../../src/SimulationController.h"
-#include "../../src/WaveSimulation.h"
-#include "../../src/AudioOutput.h"
-#include "../../src/SimulationState.h"
+#include "src/SimulationController.h"
+#include "src/WaveSimulation.h"
+#include "src/AudioOutput.h"
+#include "src/SimulationState.h"
 #include <memory>
 
 @implementation SimulationStateWrapper

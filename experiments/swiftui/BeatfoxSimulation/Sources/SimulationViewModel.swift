@@ -57,10 +57,6 @@ class SimulationViewModel: ObservableObject {
         startUpdateTimer()
     }
 
-    deinit {
-        stopUpdateTimer()
-    }
-
     // MARK: - Update Loop
 
     private func startUpdateTimer() {
@@ -197,14 +193,14 @@ class SimulationViewModel: ObservableObject {
         let x = Int32(point.x)
         let y = Int32(point.y)
 
-        bridge.addImpulse(atX: x, y: y, pressure: impulsePressure, radius: Int32(impulseRadius))
+        bridge.addImpulseAt(x: x, y: y, pressure: impulsePressure, radius: Int32(impulseRadius))
     }
 
     func addObstacle(at point: CGPoint, radius: Int = 5) {
         let x = Int32(point.x)
         let y = Int32(point.y)
 
-        bridge.addObstacle(atX: x, y: y, radius: Int32(radius))
+        bridge.addObstacleAt(x: x, y: y, radius: Int32(radius))
     }
 
     func clearObstacles() {
@@ -219,7 +215,7 @@ class SimulationViewModel: ObservableObject {
         let x = Int32(point.x)
         let y = Int32(point.y)
 
-        bridge.setListenerPosition(x, y: y)
+        bridge.setListenerPositionX(x, y: y)
     }
 
     func toggleListener() {

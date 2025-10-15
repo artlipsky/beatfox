@@ -3,7 +3,9 @@
 #include "AudioOutput.h"
 #include "Renderer.h"
 #include "CoordinateMapper.h"
+#ifndef BEATFOX_MINIMAL_BUILD
 #include "SimulationEngine.h"
+#endif
 #include "AudioSource.h"
 #include "AudioFileLoader.h"
 #include "DampingPreset.h"
@@ -262,6 +264,7 @@ void SimulationController::handleSetVolume(const SetVolumeCommand& cmd) {
 }
 
 void SimulationController::handleResizeGrid(const ResizeGridCommand& cmd) {
+#ifndef BEATFOX_MINIMAL_BUILD
     if (simulationEngine) {
         // Map command enum to SimulationEngine enum
         using EngineSize = SimulationEngine::GridSize;
@@ -286,6 +289,9 @@ void SimulationController::handleResizeGrid(const ResizeGridCommand& cmd) {
 
         simulationEngine->resizeSimulation(size);
     }
+#else
+    (void)cmd; // Suppress unused parameter warning
+#endif
 }
 
 void SimulationController::handleClearWaves() {
