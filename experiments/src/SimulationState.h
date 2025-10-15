@@ -118,7 +118,14 @@ struct UICommand {
         SET_TIME_SCALE,
         SET_WAVE_SPEED,
         SET_AIR_ABSORPTION,
-        APPLY_DAMPING_PRESET
+        APPLY_DAMPING_PRESET,
+        TOGGLE_GPU,
+
+        // UI-only state changes
+        TOGGLE_HELP,
+        TOGGLE_OBSTACLE_MODE,
+        TOGGLE_LISTENER_MODE,
+        TOGGLE_SOURCE_MODE
     };
 
     Type type;
@@ -189,9 +196,45 @@ struct ResizeGridCommand : UICommand {
         : UICommand(Type::RESIZE_GRID), size(s) {}
 };
 
+struct SetWaveSpeedCommand : UICommand {
+    float speed;
+
+    explicit SetWaveSpeedCommand(float s)
+        : UICommand(Type::SET_WAVE_SPEED), speed(s) {}
+};
+
+struct SetAirAbsorptionCommand : UICommand {
+    float damping;
+
+    explicit SetAirAbsorptionCommand(float d)
+        : UICommand(Type::SET_AIR_ABSORPTION), damping(d) {}
+};
+
+struct AddAudioSourceCommand : UICommand {
+    int x, y;
+    std::shared_ptr<AudioSample> sample;
+    float volumeDb;
+    bool loop;
+
+    AddAudioSourceCommand(int x_, int y_, std::shared_ptr<AudioSample> s, float vol, bool l)
+        : UICommand(Type::ADD_AUDIO_SOURCE), x(x_), y(y_), sample(s), volumeDb(vol), loop(l) {}
+};
+
+struct ToggleAudioSourcePlaybackCommand : UICommand {
+    size_t sourceIndex;
+
+    explicit ToggleAudioSourcePlaybackCommand(size_t idx)
+        : UICommand(Type::PLAY_AUDIO_SOURCE), sourceIndex(idx) {}
+};
+
 // Simple commands (no parameters)
 using ClearWavesCommand = UICommand;
 using ClearObstaclesCommand = UICommand;
 using ToggleListenerCommand = UICommand;
 using ToggleMuteCommand = UICommand;
 using ToggleGridDisplayCommand = UICommand;
+using ToggleGPUCommand = UICommand;
+using ToggleHelpCommand = UICommand;
+using ToggleObstacleModeCommand = UICommand;
+using ToggleListenerModeCommand = UICommand;
+using ToggleSourceModeCommand = UICommand;

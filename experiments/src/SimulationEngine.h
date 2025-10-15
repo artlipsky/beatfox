@@ -81,9 +81,6 @@ private:
     // Window state
     int windowWidth;
     int windowHeight;
-    bool mousePressed;
-    double lastMouseX;
-    double lastMouseY;
     bool showHelp;
 
     // Simulation parameters
@@ -95,7 +92,6 @@ private:
 
     // Listener mode (virtual microphone)
     bool listenerMode;  // Toggle with 'V' key
-    bool draggingListener;  // True when dragging the listener
 
     // Audio source mode
     bool sourceMode;  // Toggle with 'S' key

@@ -11,15 +11,11 @@ SimulationEngine::SimulationEngine(Application& app)
     : application(app)
     , windowWidth(1280)
     , windowHeight(720)
-    , mousePressed(false)
-    , lastMouseX(0.0)
-    , lastMouseY(0.0)
     , showHelp(true)
     , timeScale(0.001f)  // 1000x slower for clear visualization
     , obstacleMode(false)
     , obstacleRadius(5)
     , listenerMode(false)
-    , draggingListener(false)
     , sourceMode(false)
     , selectedPreset(0)
     , sourceVolumeDb(0.0f)
@@ -170,12 +166,9 @@ bool SimulationEngine::initializeSubsystems() {
 
     // Initialize input handler
     inputHandler = std::make_unique<InputHandler>(
-        simulation.get(), audioOutput.get(), coordinateMapper.get(), renderer.get(),
-        showHelp, timeScale, obstacleMode, obstacleRadius,
-        listenerMode, draggingListener, sourceMode, selectedPreset,
-        sourceVolumeDb, sourceLoop, loadedSample,
-        impulsePressure, impulseRadius,
-        mousePressed, lastMouseX, lastMouseY, windowWidth, windowHeight
+        controller.get(),
+        simulation.get(),
+        coordinateMapper.get()
     );
 
     return true;
@@ -256,6 +249,16 @@ void SimulationEngine::run() {
 
 void SimulationEngine::update() {
     const float fixedDt = 1.0f / 60.0f; // Fixed timestep for physics
+
+    // Collect and process commands from input handler
+    auto commands = inputHandler->collectCommands();
+    controller->processCommands(commands);
+
+    // Update controller state from simulation
+    controller->updateState();
+
+    // Get updated time scale from controller
+    timeScale = controller->getState().timeScale;
 
     // Update simulation with scaled time step (for slow motion)
     simulation->update(fixedDt * timeScale);

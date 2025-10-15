@@ -116,9 +116,18 @@ private:
     void handleSetTimeScale(const SetTimeScaleCommand& cmd);
     void handleSetVolume(const SetVolumeCommand& cmd);
     void handleResizeGrid(const ResizeGridCommand& cmd);
+    void handleSetWaveSpeed(const SetWaveSpeedCommand& cmd);
+    void handleSetAirAbsorption(const SetAirAbsorptionCommand& cmd);
+    void handleAddAudioSource(const AddAudioSourceCommand& cmd);
+    void handleToggleAudioSourcePlayback(const ToggleAudioSourcePlaybackCommand& cmd);
     void handleClearWaves();
     void handleClearObstacles();
     void handleToggleListener();
     void handleToggleMute();
     void handleToggleGridDisplay();
+    void handleToggleGPU();
+    void handleToggleHelp();
+    void handleToggleObstacleMode();
+    void handleToggleListenerMode();
+    void handleToggleSourceMode();
 };

@@ -4,6 +4,7 @@
 #include "Renderer.h"
 #include "CoordinateMapper.h"
 #include "SimulationEngine.h"
+#include "AudioSource.h"
 #include <iostream>
 
 SimulationController::SimulationController(
@@ -76,6 +77,42 @@ void SimulationController::processCommand(const UICommand& command) {
 
         case Type::TOGGLE_GRID_DISPLAY:
             handleToggleGridDisplay();
+            break;
+
+        case Type::SET_WAVE_SPEED:
+            handleSetWaveSpeed(static_cast<const SetWaveSpeedCommand&>(command));
+            break;
+
+        case Type::SET_AIR_ABSORPTION:
+            handleSetAirAbsorption(static_cast<const SetAirAbsorptionCommand&>(command));
+            break;
+
+        case Type::TOGGLE_GPU:
+            handleToggleGPU();
+            break;
+
+        case Type::ADD_AUDIO_SOURCE:
+            handleAddAudioSource(static_cast<const AddAudioSourceCommand&>(command));
+            break;
+
+        case Type::PLAY_AUDIO_SOURCE:
+            handleToggleAudioSourcePlayback(static_cast<const ToggleAudioSourcePlaybackCommand&>(command));
+            break;
+
+        case Type::TOGGLE_HELP:
+            handleToggleHelp();
+            break;
+
+        case Type::TOGGLE_OBSTACLE_MODE:
+            handleToggleObstacleMode();
+            break;
+
+        case Type::TOGGLE_LISTENER_MODE:
+            handleToggleListenerMode();
+            break;
+
+        case Type::TOGGLE_SOURCE_MODE:
+            handleToggleSourceMode();
             break;
 
         default:
@@ -239,5 +276,72 @@ void SimulationController::handleToggleMute() {
 void SimulationController::handleToggleGridDisplay() {
     if (renderer) {
         renderer->setGridEnabled(!renderer->isGridEnabled());
+    }
+}
+
+void SimulationController::handleSetWaveSpeed(const SetWaveSpeedCommand& cmd) {
+    if (simulation) {
+        simulation->setWaveSpeed(cmd.speed);
+    }
+}
+
+void SimulationController::handleSetAirAbsorption(const SetAirAbsorptionCommand& cmd) {
+    if (simulation) {
+        simulation->setDamping(cmd.damping);
+    }
+}
+
+void SimulationController::handleToggleGPU() {
+    if (simulation) {
+        simulation->setGPUEnabled(!simulation->isGPUEnabled());
+    }
+}
+
+void SimulationController::handleAddAudioSource(const AddAudioSourceCommand& cmd) {
+    if (simulation && cmd.sample) {
+        auto source = std::make_unique<AudioSource>(cmd.sample, cmd.x, cmd.y, cmd.volumeDb, cmd.loop);
+        source->play();
+        simulation->addAudioSource(std::move(source));
+    }
+}
+
+void SimulationController::handleToggleAudioSourcePlayback(const ToggleAudioSourcePlaybackCommand& cmd) {
+    if (simulation) {
+        AudioSource* source = simulation->getAudioSource(cmd.sourceIndex);
+        if (source) {
+            if (source->isPlaying()) {
+                source->pause();
+            } else {
+                source->resume();
+            }
+        }
+    }
+}
+
+void SimulationController::handleToggleHelp() {
+    state.showHelp = !state.showHelp;
+}
+
+void SimulationController::handleToggleObstacleMode() {
+    state.obstacleMode = !state.obstacleMode;
+    if (state.obstacleMode) {
+        state.listenerMode = false;
+        state.sourceMode = false;
+    }
+}
+
+void SimulationController::handleToggleListenerMode() {
+    state.listenerMode = !state.listenerMode;
+    if (state.listenerMode) {
+        state.obstacleMode = false;
+        state.sourceMode = false;
+    }
+}
+
+void SimulationController::handleToggleSourceMode() {
+    state.sourceMode = !state.sourceMode;
+    if (state.sourceMode) {
+        state.obstacleMode = false;
+        state.listenerMode = false;
     }
 }
