@@ -81,28 +81,10 @@ private:
     // Window state
     int windowWidth;
     int windowHeight;
-    bool showHelp;
 
     // Simulation parameters
     float timeScale;  // Time scale: 0.001-1.0 (1000x slower to real-time), default 0.001 for visualization
-
-    // Obstacle mode
-    bool obstacleMode;  // Toggle with 'O' key
-    int obstacleRadius;  // Obstacle brush size (pixels)
-
-    // Listener mode (virtual microphone)
-    bool listenerMode;  // Toggle with 'V' key
-
-    // Audio source mode
-    bool sourceMode;  // Toggle with 'S' key
-    int selectedPreset;  // 0=Kick, 1=Snare, 2=Tone, 3=Impulse, 4=LoadedFile
-    float sourceVolumeDb;  // Volume in dB
-    bool sourceLoop;  // Loop audio
-    std::shared_ptr<AudioSample> loadedSample;  // User-loaded audio file
-
-    // Impulse (click) parameters
-    float impulsePressure;  // Pressure amplitude in Pa (default: 5.0 Pa = hand clap)
-    int impulseRadius;  // Spatial spread in pixels (default: 2 pixels = 5 cm)
+                      // NOTE: timeScale is still here temporarily for backward compatibility
 
     // Grid dimensions and current size preset
     int gridWidth;

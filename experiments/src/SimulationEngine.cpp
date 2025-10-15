@@ -11,18 +11,7 @@ SimulationEngine::SimulationEngine(Application& app)
     : application(app)
     , windowWidth(1280)
     , windowHeight(720)
-    , showHelp(true)
-    , timeScale(0.001f)  // 1000x slower for clear visualization
-    , obstacleMode(false)
-    , obstacleRadius(5)
-    , listenerMode(false)
-    , sourceMode(false)
-    , selectedPreset(0)
-    , sourceVolumeDb(0.0f)
-    , sourceLoop(true)
-    , loadedSample(nullptr)
-    , impulsePressure(5.0f)  // 5 Pa = typical hand clap
-    , impulseRadius(2)       // 2 pixels × 8.6mm = 17.2mm ≈ 2cm spread
+    , timeScale(0.001f)  // 1000x slower for clear visualization (synced from controller)
     , gridWidth(581)   // 5m / 0.0086m = 581 pixels (SMALL ROOM + FULL AUDIO: 20 kHz support!)
     , gridHeight(291)  // 2.5m / 0.0086m = 291 pixels
     , currentGridSize(GridSize::SMALL)  // Start with small grid
@@ -158,10 +147,10 @@ bool SimulationEngine::initializeSubsystems() {
 
     // Initialize UI
     simulationUI = std::make_unique<SimulationUI>(
-        this, simulation.get(), audioOutput.get(), coordinateMapper.get(),
-        showHelp, timeScale, obstacleMode, obstacleRadius,
-        listenerMode, sourceMode, selectedPreset, sourceVolumeDb, sourceLoop, loadedSample,
-        impulsePressure, impulseRadius
+        controller.get(),
+        simulation.get(),
+        audioOutput.get(),
+        coordinateMapper.get()
     );
 
     // Initialize input handler

@@ -5,66 +5,45 @@
 #include <functional>
 
 // Forward declarations
+class SimulationController;
 class WaveSimulation;
 class AudioOutput;
 class CoordinateMapper;
-class AudioSample;
 class SimulationEngine;
 
 /*
- * SimulationUI - Presentation layer for acoustic simulation
+ * SimulationUI - Presentation layer with clean MVC architecture
  *
- * Encapsulates all ImGui rendering logic for the simulation UI.
- * Follows Single Responsibility Principle by separating presentation
- * from application logic.
+ * Refactored to read state from SimulationController instead of
+ * accepting 17 parameters by reference.
  *
  * Responsibilities:
  * - Render listener position marker (virtual microphone)
  * - Render audio source position markers
  * - Render controls panel (help overlay)
  * - Render help button (when panel is closed)
+ * - Read UI state from controller->getState()
  *
  * Does NOT handle:
- * - Application logic (managed by main.cpp)
- * - Event handling (managed by GLFW callbacks in main.cpp)
- * - Simulation state updates (managed by WaveSimulation)
+ * - State ownership (managed by SimulationController)
+ * - Event handling (managed by InputHandler)
+ * - Simulation updates (managed by WaveSimulation)
  */
 class SimulationUI {
 public:
     /*
-     * Constructor
+     * Constructor - Clean 4-parameter design
      *
-     * @param sim Pointer to wave simulation (not owned)
-     * @param audio Pointer to audio output (not owned)
-     * @param mapper Pointer to coordinate mapper (not owned)
-     * @param showHelp Reference to showHelp state variable
-     * @param timeScale Reference to timeScale state variable
-     * @param obstacleMode Reference to obstacleMode state variable
-     * @param obstacleRadius Reference to obstacleRadius state variable
-     * @param listenerMode Reference to listenerMode state variable
-     * @param sourceMode Reference to sourceMode state variable
-     * @param selectedPreset Reference to selectedPreset state variable
-     * @param sourceVolumeDb Reference to sourceVolumeDb state variable
-     * @param sourceLoop Reference to sourceLoop state variable
-     * @param loadedSample Reference to loadedSample shared_ptr
+     * @param controller Pointer to simulation controller (not owned)
+     * @param sim Pointer to wave simulation (not owned, for direct queries)
+     * @param audio Pointer to audio output (not owned, for status queries)
+     * @param mapper Pointer to coordinate mapper (not owned, for coordinate conversion)
      */
     SimulationUI(
-        SimulationEngine* engine,
+        SimulationController* controller,
         WaveSimulation* sim,
         AudioOutput* audio,
-        CoordinateMapper* mapper,
-        bool& showHelp,
-        float& timeScale,
-        bool& obstacleMode,
-        int& obstacleRadius,
-        bool& listenerMode,
-        bool& sourceMode,
-        int& selectedPreset,
-        float& sourceVolumeDb,
-        bool& sourceLoop,
-        std::shared_ptr<AudioSample>& loadedSample,
-        float& impulsePressure,
-        int& impulseRadius
+        CoordinateMapper* mapper
     );
 
     ~SimulationUI() = default;
@@ -118,23 +97,9 @@ public:
     void updateSimulationPointer(WaveSimulation* newSim);
 
 private:
-    // References to simulation components (not owned)
-    SimulationEngine* simulationEngine;
+    // Pointers to subsystems (not owned)
+    SimulationController* controller;
     WaveSimulation* simulation;
     AudioOutput* audioOutput;
     CoordinateMapper* coordinateMapper;
-
-    // References to UI state variables (managed by main.cpp)
-    bool& showHelp;
-    float& timeScale;
-    bool& obstacleMode;
-    int& obstacleRadius;
-    bool& listenerMode;
-    bool& sourceMode;
-    int& selectedPreset;
-    float& sourceVolumeDb;
-    bool& sourceLoop;
-    std::shared_ptr<AudioSample>& loadedSample;
-    float& impulsePressure;
-    int& impulseRadius;
 };
