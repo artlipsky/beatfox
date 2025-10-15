@@ -59,7 +59,10 @@ bool CoordinateMapper::screenToGrid(double screenX, double screenY, int& gridX, 
     float viewportHeight = viewportTop - viewportBottom;
 
     float normalizedX = (fbX - viewportLeft) / viewportWidth;
-    // Map viewport to grid: bottom of viewport → gridY=0, top → gridY=height-1
+    // Map viewport to grid:
+    // Viewport Y is bottom-up (bottom=0, top=1)
+    // Grid Y is top-down (top=0, bottom=height-1)
+    // So we need to invert Y!
     float normalizedY = (fbYFlipped - viewportBottom) / viewportHeight;
 
     gridX = static_cast<int>(normalizedX * gridWidth);
@@ -81,7 +84,6 @@ void CoordinateMapper::gridToFramebuffer(int gridX, int gridY, float& fbX, float
     float viewportHeight = viewportTop - viewportBottom;
 
     fbX = viewportLeft + normalizedX * viewportWidth;
-    // Map grid to viewport: gridY=0 → low fbY (viewBottom), gridY=height-1 → high fbY (viewTop)
     fbY = viewportBottom + normalizedY * viewportHeight;
 }
 

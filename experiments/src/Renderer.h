@@ -20,9 +20,21 @@ public:
     // Get room viewport (for mouse coordinate mapping)
     void getRoomViewport(float& left, float& right, float& bottom, float& top) const;
 
+    // Update grid dimensions and recalculate viewport
+    void updateGridDimensions(int width, int height);
+
+    // Grid configuration
+    void setGridEnabled(bool enabled) { gridEnabled = enabled; }
+    bool isGridEnabled() const { return gridEnabled; }
+    void setGridSpacing(int spacing) { gridSpacing = spacing; }
+
 private:
     int windowWidth;
     int windowHeight;
+
+    // Grid dimensions (for aspect ratio calculation)
+    int gridWidth = 0;
+    int gridHeight = 0;
 
     // Room viewport with padding
     float padding = 40.0f;  // Padding in pixels around the room
@@ -36,9 +48,21 @@ private:
     std::vector<float> vertices;
     std::vector<unsigned int> indices;
 
+    // Grid rendering
+    bool gridEnabled = true;
+    int gridSpacing = 10;  // Grid line every N simulation cells
+    GLuint gridVAO = 0;
+    GLuint gridVBO = 0;
+    GLuint gridShaderProgram = 0;
+    GLuint gridProjectionLoc = 0;
+    int gridLineCount = 0;  // Total number of grid line vertices
+
     bool loadShaders();
     GLuint compileShader(GLenum type, const std::string& source);
     std::string loadShaderFile(const std::string& filepath);
     void setupBuffers(int gridWidth, int gridHeight);
     void calculateRoomViewport();
+    void renderGrid(int gridWidth, int gridHeight);
+    bool loadGridShaders();
+    void setupGridBuffers(int gridWidth, int gridHeight);
 };

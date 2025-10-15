@@ -5,11 +5,13 @@
 #include "Renderer.h"
 #include "AudioSample.h"
 #include "AudioSource.h"
+#include "AcousticUtils.h"
 #include "portable-file-dialogs.h"
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <iostream>
 #include <algorithm>
+#include <cmath>
 
 InputHandler::InputHandler(
     WaveSimulation* sim,
@@ -27,6 +29,8 @@ InputHandler::InputHandler(
     float& sourceVolumeDb,
     bool& sourceLoop,
     std::shared_ptr<AudioSample>& loadedSample,
+    float& impulsePressure,
+    int& impulseRadius,
     bool& mousePressed,
     double& lastMouseX,
     double& lastMouseY,
@@ -48,12 +52,18 @@ InputHandler::InputHandler(
     , sourceVolumeDb(sourceVolumeDb)
     , sourceLoop(sourceLoop)
     , loadedSample(loadedSample)
+    , impulsePressure(impulsePressure)
+    , impulseRadius(impulseRadius)
     , mousePressed(mousePressed)
     , lastMouseX(lastMouseX)
     , lastMouseY(lastMouseY)
     , windowWidth(windowWidth)
     , windowHeight(windowHeight)
 {
+}
+
+void InputHandler::updateSimulationPointer(WaveSimulation* newSim) {
+    simulation = newSim;
 }
 
 bool InputHandler::screenToGrid(double screenX, double screenY, int& gridX, int& gridY) {
@@ -110,20 +120,47 @@ void InputHandler::handleMouseButton(GLFWwindow* window, int button, int action,
 
             int gridX, gridY;
             if (screenToGrid(xpos, ypos, gridX, gridY)) {
-                // Check if clicking on existing listener for dragging
-                if (simulation->hasListener()) {
-                    int listenerX, listenerY;
-                    simulation->getListenerPosition(listenerX, listenerY);
+                // Check if clicking on listener position for toggle or dragging
+                // Note: Always check listener position, even if disabled, so we can re-enable by clicking
+                int listenerX, listenerY;
+                simulation->getListenerPosition(listenerX, listenerY);
 
-                    // Check if click is within listener radius (use Manhattan distance for simplicity)
-                    int dx = gridX - listenerX;
-                    int dy = gridY - listenerY;
+                // Check if click is within listener radius (use Manhattan distance for simplicity)
+                int dx = gridX - listenerX;
+                int dy = gridY - listenerY;
+                int distSquared = dx * dx + dy * dy;
+                const int listenerRadiusSquared = 10 * 10;  // 10 pixel radius
+
+                if (distSquared <= listenerRadiusSquared) {
+                    // Start tracking for potential drag or toggle
+                    draggingListener = true;
+                    return;  // Don't process other actions
+                }
+
+                // Check if clicking on existing audio source for play/pause toggle
+                const auto& audioSources = simulation->getAudioSources();
+                for (size_t i = 0; i < audioSources.size(); i++) {
+                    AudioSource* source = simulation->getAudioSource(i);
+                    if (!source) continue;
+
+                    int sourceX = source->getX();
+                    int sourceY = source->getY();
+
+                    // Check if click is within source radius (use Manhattan distance)
+                    int dx = gridX - sourceX;
+                    int dy = gridY - sourceY;
                     int distSquared = dx * dx + dy * dy;
-                    const int listenerRadiusSquared = 10 * 10;  // 10 pixel radius
+                    const int sourceRadiusSquared = 10 * 10;  // 10 pixel radius
 
-                    if (distSquared <= listenerRadiusSquared) {
-                        // Start dragging the listener
-                        draggingListener = true;
+                    if (distSquared <= sourceRadiusSquared) {
+                        // Toggle play/pause state
+                        if (source->isPlaying()) {
+                            source->pause();
+                            std::cout << "Audio source " << i << " paused" << std::endl;
+                        } else {
+                            source->resume();
+                            std::cout << "Audio source " << i << " resumed" << std::endl;
+                        }
                         return;  // Don't process other actions
                     }
                 }
@@ -164,13 +201,41 @@ void InputHandler::handleMouseButton(GLFWwindow* window, int button, int action,
                         std::cout << "Audio source placed at (" << gridX << ", " << gridY << "), volume: " << sourceVolumeDb << " dB" << std::endl;
                     }
                 } else {
-                    // Create a single impulse (like a hand clap)
-                    // Brief pressure impulse (5 Pa - typical hand clap)
-                    // For reference: whisper ~0.01 Pa, conversation ~0.1 Pa, clap ~5 Pa
-                    simulation->addPressureSource(gridX, gridY, 5.0f);
+                    // Create a single impulse using user-defined parameters
+                    // Pressure amplitude and spatial spread are controlled via UI
+                    simulation->addPressureSource(gridX, gridY, impulsePressure, impulseRadius);
+
+                    // Log impulse creation with physical parameters
+                    const float dB_SPL = AcousticUtils::pressureToDbSpl(impulsePressure);
+                    const float spreadMM = impulseRadius * simulation->getPixelSize();
+                    std::cout << "Created impulse at (" << gridX << ", " << gridY << "): "
+                              << impulsePressure << " Pa (" << dB_SPL << " dB SPL), "
+                              << impulseRadius << " px (" << spreadMM << " mm spread)" << std::endl;
                 }
             }
         } else if (action == GLFW_RELEASE) {
+            // Check if we were dragging the listener
+            if (draggingListener && simulation) {
+                // Get current mouse position
+                double xpos, ypos;
+                glfwGetCursorPos(window, &xpos, &ypos);
+
+                // Calculate distance moved (in screen pixels)
+                double dx = xpos - lastMouseX;
+                double dy = ypos - lastMouseY;
+                double distanceMoved = std::sqrt(dx * dx + dy * dy);
+
+                // If mouse barely moved, treat it as a click (toggle)
+                // Otherwise, it was a drag (already handled)
+                const double clickThreshold = 5.0;  // 5 pixels
+                if (distanceMoved < clickThreshold) {
+                    // Toggle listener enabled/disabled
+                    bool currentlyEnabled = simulation->hasListener();
+                    simulation->setListenerEnabled(!currentlyEnabled);
+                    std::cout << "Listener " << (currentlyEnabled ? "disabled" : "enabled") << std::endl;
+                }
+            }
+
             mousePressed = false;
             draggingListener = false;  // Stop dragging listener
         }
@@ -285,7 +350,7 @@ void InputHandler::handleKey(GLFWwindow* window, int key, int scancode, int acti
                 std::cout << std::endl;
                 break;
             case GLFW_KEY_MINUS:  // Minus key (slow down)
-                timeScale = std::max(0.01f, timeScale / 1.5f);
+                timeScale = std::max(0.001f, timeScale / 1.5f);
                 std::cout << "Time scale: " << timeScale << "x";
                 if (timeScale < 1.0f) {
                     std::cout << " (" << (1.0f / timeScale) << "x slower)";
@@ -314,7 +379,7 @@ void InputHandler::handleKey(GLFWwindow* window, int key, int scancode, int acti
                     std::cout << "Obstacle radius: " << obstacleRadius << " pixels" << std::endl;
                 } else {
                     // [ for time slow down
-                    timeScale = std::max(0.01f, timeScale / 1.5f);
+                    timeScale = std::max(0.001f, timeScale / 1.5f);
                     std::cout << "Time scale: " << timeScale << "x";
                     if (timeScale < 1.0f) {
                         std::cout << " (" << (1.0f / timeScale) << "x slower)";
@@ -322,13 +387,17 @@ void InputHandler::handleKey(GLFWwindow* window, int key, int scancode, int acti
                     std::cout << std::endl;
                 }
                 break;
-            case GLFW_KEY_0:  // Reset to real-time
-                timeScale = 1.0f;
-                std::cout << "Time scale: 1.0x (real-time)" << std::endl;
+            case GLFW_KEY_0:  // Maximum speed (limited for stability)
+                timeScale = 0.25f;
+                std::cout << "Time scale: 0.25x (4x slower - max speed)" << std::endl;
                 break;
             case GLFW_KEY_1:  // 20x slower
                 timeScale = 0.05f;
                 std::cout << "Time scale: 0.05x (20x slower)" << std::endl;
+                break;
+            case GLFW_KEY_2:  // 1000x slower
+                timeScale = 0.001f;
+                std::cout << "Time scale: 0.001x (1000x slower)" << std::endl;
                 break;
             case GLFW_KEY_O:  // Toggle obstacle mode
                 obstacleMode = !obstacleMode;

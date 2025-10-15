@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Typical Krasnodar Studio Apartment (Odnokomnatnaya)
+  Total area: ~25 m² (5m × 2.5m internal dimensions)
+
+  Layout based on small Russian studio apartments:
+  - Combined living/sleeping area: ~12 m²
+  - Kitchen nook: ~5 m²
+  - Bathroom: ~4 m²
+  - Small hallway: ~4 m²
+
+  Scale: Designed for simulation with 1 pixel = 8.6mm
+  SVG dimensions: 581×291 = 5m × 2.5m (matches current simulation)
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 581 291" width="581" height="291">
+  <!-- Background (empty space for sound propagation) -->
+  <rect x="0" y="0" width="581" height="291" fill="white"/>
+
+  <!-- Outer walls (20px = ~17cm thick) -->
+  <rect x="0" y="0" width="581" height="20" fill="black"/>         <!-- Top wall -->
+  <rect x="0" y="271" width="581" height="20" fill="black"/>       <!-- Bottom wall -->
+  <rect x="0" y="0" width="20" height="291" fill="black"/>         <!-- Left wall -->
+  <rect x="561" y="0" width="20" height="291" fill="black"/>       <!-- Right wall -->
+
+  <!-- Interior walls (15px = ~13cm thick) -->
+
+  <!-- Hallway wall (creates entry corridor) -->
+  <rect x="20" y="90" width="120" height="15" fill="black"/>       <!-- Horizontal wall separating hallway -->
+
+  <!-- Bathroom wall (left side) -->
+  <rect x="20" y="105" width="100" height="15" fill="black"/>      <!-- Bathroom top wall -->
+  <rect x="105" y="105" width="15" height="166" fill="black"/>     <!-- Bathroom right wall -->
+
+  <!-- Kitchen wall (separates kitchen from main room) -->
+  <rect x="240" y="20" width="15" height="160" fill="black"/>      <!-- Kitchen right wall -->
+
+  <!-- Doors (openings, 50px = ~43cm, compact Russian doors) -->
+
+  <!-- Main entry door -->
+  <rect x="50" y="20" width="50" height="15" fill="white"/>        <!-- Entry door opening -->
+
+  <!-- Bathroom door -->
+  <rect x="120" y="105" width="50" height="15" fill="white"/>      <!-- Bathroom door opening -->
+
+  <!-- Furniture and fixtures (typical Soviet/Russian studio) -->
+
+  <!-- Bathroom fixtures -->
+  <rect x="30" y="130" width="60" height="40" fill="gray"/>        <!-- Bathtub/shower -->
+  <rect x="30" y="220" width="30" height="35" fill="gray"/>        <!-- Toilet -->
+  <rect x="65" y="220" width="30" height="35" fill="gray"/>        <!-- Sink -->
+
+  <!-- Kitchen appliances and counter -->
+  <rect x="150" y="30" width="80" height="40" fill="gray"/>        <!-- Kitchen counter -->
+  <rect x="150" y="130" width="40" height="35" fill="gray"/>       <!-- Refrigerator -->
+
+  <!-- Main room furniture (combined living/sleeping) -->
+  <rect x="280" y="50" width="90" height="140" fill="gray"/>       <!-- Bed/sofa bed -->
+  <rect x="430" y="60" width="100" height="60" fill="gray"/>       <!-- Table -->
+  <rect x="430" y="180" width="80" height="50" fill="gray"/>       <!-- Wardrobe -->
+
+  <!-- Room labels (for reference) -->
+  <text x="70" y="55" font-family="Arial" font-size="11" fill="darkgray">Hall</text>
+  <text x="45" y="200" font-family="Arial" font-size="10" fill="darkgray">Bath</text>
+  <text x="170" y="90" font-family="Arial" font-size="11" fill="darkgray">Kitchen</text>
+  <text x="360" y="145" font-family="Arial" font-size="13" fill="darkgray">Living/Bedroom</text>
+</svg>

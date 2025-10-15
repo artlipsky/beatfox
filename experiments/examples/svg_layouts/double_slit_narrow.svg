@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Double Slit Experiment - Narrow Slits (Strong Interference) -->
+<!-- 5m x 2.5m room for clear interference pattern -->
+<!-- Coordinates: 1 unit = 1 meter -->
+<svg viewBox="0 0 5 2.5" xmlns="http://www.w3.org/2000/svg">
+  <!-- Outer walls (room boundary) -->
+  <rect x="0" y="0" width="5" height="2.5"
+        fill="none" stroke="black" stroke-width="0.05"/>
+
+  <!-- Central barrier with two narrow slits -->
+  <!-- Barrier is at x=2.5m (center of room) -->
+  <!-- Slits are narrower (0.1m) and closer together for strong interference -->
+
+  <!-- Top section of barrier (from top to first slit) -->
+  <line x1="2.5" y1="0" x2="2.5" y2="0.95"
+        stroke="black" stroke-width="0.05"/>
+
+  <!-- First slit opening: y=0.95 to y=1.05 (0.1m wide, narrow) -->
+
+  <!-- Middle section of barrier (between two slits) -->
+  <!-- Spacing: 0.4m between slits (closer together) -->
+  <line x1="2.5" y1="1.05" x2="2.5" y2="1.45"
+        stroke="black" stroke-width="0.05"/>
+
+  <!-- Second slit opening: y=1.45 to y=1.55 (0.1m wide, narrow) -->
+
+  <!-- Bottom section of barrier (from second slit to bottom) -->
+  <line x1="2.5" y1="1.55" x2="2.5" y2="2.5"
+        stroke="black" stroke-width="0.05"/>
+
+  <!-- Labels (optional) -->
+  <text x="0.5" y="1.3" fill="gray" font-size="0.15" opacity="0.3">Source</text>
+  <text x="3.2" y="1.3" fill="gray" font-size="0.15" opacity="0.3">Interference</text>
+  <text x="2.15" y="0.4" fill="red" font-size="0.12" opacity="0.5">Narrow Slits</text>
+
+  <!-- Slit markers -->
+  <circle cx="2.5" cy="1.0" r="0.03" fill="green" opacity="0.5"/>
+  <circle cx="2.5" cy="1.5" r="0.03" fill="green" opacity="0.5"/>
+  <text x="2.6" y="1.02" fill="green" font-size="0.08" opacity="0.5">Slit 1</text>
+  <text x="2.6" y="1.52" fill="green" font-size="0.08" opacity="0.5">Slit 2</text>
+</svg>

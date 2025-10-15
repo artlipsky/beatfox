@@ -19,8 +19,25 @@ AudioOutput::AudioOutput()
     , previousPressure(0.0f)
     , simulationFrameRate(60.0f)  // Assume 60 FPS simulation
 {
-    // Allocate ring buffer (1 second worth of samples)
-    audioBuffer.resize(sampleRate, 0.0f);
+    // Allocate ring buffer
+    // Balance between latency and stability:
+    // - 100ms was too small → buffer underruns → stuttering
+    // - 1000ms was too large → 500ms latency
+    // - 200ms = good compromise: ~100ms latency, resilient to frame jitter
+    int bufferSizeMs = 200;
+    int bufferSize = (sampleRate * bufferSizeMs) / 1000;
+    audioBuffer.resize(bufferSize, 0.0f);
+
+    // Pre-fill buffer with 50ms of silence to give audio thread a head start
+    // This prevents initial underruns when audio starts before simulation fills buffer
+    int prefillMs = 50;
+    int prefillSamples = (sampleRate * prefillMs) / 1000;
+    bufferWritePos = prefillSamples;  // Start writing ahead of read position
+
+    std::cout << "AudioOutput: Ring buffer size: " << bufferSize << " samples ("
+              << bufferSizeMs << "ms at " << sampleRate << " Hz)" << std::endl;
+    std::cout << "AudioOutput: Pre-fill: " << prefillSamples << " samples ("
+              << prefillMs << "ms head start)" << std::endl;
 }
 
 AudioOutput::~AudioOutput() {
@@ -35,7 +52,21 @@ AudioOutput::~AudioOutput() {
 
 bool AudioOutput::initialize(int sampleRate) {
     this->sampleRate = sampleRate;
-    audioBuffer.resize(sampleRate, 0.0f);
+
+    // Allocate ring buffer (200ms for stability)
+    int bufferSizeMs = 200;
+    int bufferSize = (sampleRate * bufferSizeMs) / 1000;
+    audioBuffer.resize(bufferSize, 0.0f);
+
+    // Pre-fill buffer with 50ms of silence
+    int prefillMs = 50;
+    int prefillSamples = (sampleRate * prefillMs) / 1000;
+    bufferWritePos = prefillSamples;
+
+    std::cout << "AudioOutput: Ring buffer size: " << bufferSize << " samples ("
+              << bufferSizeMs << "ms at " << sampleRate << " Hz)" << std::endl;
+    std::cout << "AudioOutput: Pre-fill: " << prefillSamples << " samples ("
+              << prefillMs << "ms head start)" << std::endl;
 
     // Allocate device
     device = new ma_device();

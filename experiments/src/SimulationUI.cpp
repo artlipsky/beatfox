@@ -1,14 +1,17 @@
 #include "SimulationUI.h"
+#include "SimulationEngine.h"
 #include "WaveSimulation.h"
 #include "AudioOutput.h"
 #include "CoordinateMapper.h"
 #include "AudioSample.h"
 #include "AudioFileLoader.h"
 #include "DampingPreset.h"
+#include "AcousticUtils.h"
 #include "portable-file-dialogs.h"
 #include <iostream>
 
 SimulationUI::SimulationUI(
+    SimulationEngine* engine,
     WaveSimulation* sim,
     AudioOutput* audio,
     CoordinateMapper* mapper,
@@ -21,9 +24,12 @@ SimulationUI::SimulationUI(
     int& selectedPreset,
     float& sourceVolumeDb,
     bool& sourceLoop,
-    std::shared_ptr<AudioSample>& loadedSample
+    std::shared_ptr<AudioSample>& loadedSample,
+    float& impulsePressure,
+    int& impulseRadius
 )
-    : simulation(sim)
+    : simulationEngine(engine)
+    , simulation(sim)
     , audioOutput(audio)
     , coordinateMapper(mapper)
     , showHelp(showHelp)
@@ -36,7 +42,13 @@ SimulationUI::SimulationUI(
     , sourceVolumeDb(sourceVolumeDb)
     , sourceLoop(sourceLoop)
     , loadedSample(loadedSample)
+    , impulsePressure(impulsePressure)
+    , impulseRadius(impulseRadius)
 {
+}
+
+void SimulationUI::updateSimulationPointer(WaveSimulation* newSim) {
+    simulation = newSim;
 }
 
 void SimulationUI::render() {
@@ -224,6 +236,63 @@ void SimulationUI::renderControlsPanel() {
     ImGui::Separator();
     ImGui::Spacing();
 
+    // Grid Size / Room Scale Section
+    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.6f, 0.9f, 1.0f, 1.0f));
+    ImGui::Text("Room Size (Grid Resolution):");
+    ImGui::PopStyleColor();
+
+    if (simulationEngine) {
+        auto currentSize = simulationEngine->getCurrentGridSize();
+
+        // Small (5m × 2.5m)
+        bool isSmall = (currentSize == SimulationEngine::GridSize::SMALL);
+        if (ImGui::RadioButton("Small (5m × 2.5m)", isSmall)) {
+            simulationEngine->resizeSimulation(SimulationEngine::GridSize::SMALL);
+        }
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Small room: 5m × 2.5m (581×291 px)\nMemory: ~2 MB\nGood for studios and compact spaces");
+        }
+
+        // Medium (6m × 4m)
+        bool isMedium = (currentSize == SimulationEngine::GridSize::MEDIUM);
+        if (ImGui::RadioButton("Medium (6m × 4m)", isMedium)) {
+            simulationEngine->resizeSimulation(SimulationEngine::GridSize::MEDIUM);
+        }
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Medium room: 6m × 4m (698×465 px)\nMemory: ~4 MB\nGood for medium apartments");
+        }
+
+        // Large (8m × 6m)
+        bool isLarge = (currentSize == SimulationEngine::GridSize::LARGE);
+        if (ImGui::RadioButton("Large (8m × 6m)", isLarge)) {
+            simulationEngine->resizeSimulation(SimulationEngine::GridSize::LARGE);
+        }
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Large room: 8m × 6m (930×698 px)\nMemory: ~8 MB\nGood for large apartments");
+        }
+
+        // XLarge (10m × 8m)
+        bool isXLarge = (currentSize == SimulationEngine::GridSize::XLARGE);
+        if (ImGui::RadioButton("X-Large (10m × 8m)", isXLarge)) {
+            simulationEngine->resizeSimulation(SimulationEngine::GridSize::XLARGE);
+        }
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Extra large: 10m × 8m (1163×930 px)\nMemory: ~13 MB\nGood for very large spaces");
+        }
+
+        // Show current grid info
+        ImGui::TextDisabled("Grid: %d × %d px, %.1f × %.1f m",
+                          simulation ? simulation->getWidth() : 0,
+                          simulation ? simulation->getHeight() : 0,
+                          simulation ? simulation->getPhysicalWidth() : 0.0f,
+                          simulation ? simulation->getPhysicalHeight() : 0.0f);
+        ImGui::TextDisabled("Scale: 1 pixel = 8.6 mm (constant)");
+    }
+
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Spacing();
+
     // Audio Sources Section
     ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.7f, 0.8f, 1.0f));
     ImGui::Text("Audio Sources:");
@@ -273,6 +342,49 @@ void SimulationUI::renderControlsPanel() {
 
     ImGui::Spacing();
     ImGui::Separator();
+    ImGui::Spacing();
+
+    // Impulse (Click) Parameters Section
+    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.8f, 1.0f, 0.7f, 1.0f));
+    ImGui::Text("Impulse (Click) Parameters:");
+    ImGui::PopStyleColor();
+
+    // Pressure amplitude slider with dB SPL conversion
+    ImGui::SliderFloat("Pressure (Pa)", &impulsePressure, 0.01f, 100.0f, "%.2f Pa", ImGuiSliderFlags_Logarithmic);
+    if (ImGui::IsItemHovered()) {
+        const float dB_SPL = AcousticUtils::pressureToDbSpl(impulsePressure);
+        ImGui::SetTooltip("Acoustic pressure amplitude\n"
+                         "%.2f Pa ≈ %.0f dB SPL\n\n"
+                         "Reference:\n"
+                         "0.02 Pa = whisper (30 dB)\n"
+                         "0.2 Pa = conversation (60 dB)\n"
+                         "2 Pa = loud talking (80 dB)\n"
+                         "5 Pa = hand clap (94 dB)\n"
+                         "20 Pa = shout (100 dB)\n"
+                         "100 Pa = very loud (114 dB)",
+                         impulsePressure, dB_SPL);
+    }
+
+    // Impulse radius slider
+    ImGui::SliderInt("Spread (pixels)", &impulseRadius, 1, 10, "%d px");
+    if (ImGui::IsItemHovered()) {
+        const float pixelSizeMM = simulation ? simulation->getPixelSize() : 8.6f;
+        const float spreadMM = impulseRadius * pixelSizeMM;
+        ImGui::SetTooltip("Spatial spread of impulse\n"
+                         "%d pixels ≈ %.1f mm\n\n"
+                         "Smaller = point source (sharp wave)\n"
+                         "Larger = diffuse source (smooth wave)",
+                         impulseRadius, spreadMM);
+    }
+
+    // Show current impulse info
+    const float dB_SPL = AcousticUtils::pressureToDbSpl(impulsePressure);
+    const float pixelSizeMM = simulation ? simulation->getPixelSize() : 8.6f;
+    ImGui::TextDisabled("Click impulse: %.2f Pa (%.0f dB SPL), %.1f mm spread",
+                       impulsePressure, dB_SPL, impulseRadius * pixelSizeMM);
+
+    ImGui::Spacing();
+    ImGui::Separator();
     ImGui::Text("Controls:");
 
     if (sourceMode) {
@@ -289,7 +401,8 @@ void SimulationUI::renderControlsPanel() {
         ImGui::BulletText("Right Click: Remove obstacle");
         ImGui::PopStyleColor();
     } else {
-        ImGui::BulletText("Left Click: Create sound (5 Pa)");
+        const float dB_SPL_display = AcousticUtils::pressureToDbSpl(impulsePressure);
+        ImGui::BulletText("Left Click: Create impulse (%.1f Pa, %.0f dB)", impulsePressure, dB_SPL_display);
     }
     ImGui::BulletText("S: Audio Source mode (%s)", sourceMode ? "ON" : "OFF");
     ImGui::BulletText("V: Listener mode (%s)", listenerMode ? "ON" : "OFF");
@@ -299,7 +412,7 @@ void SimulationUI::renderControlsPanel() {
     ImGui::BulletText("Shift+[/]: Obstacle size (%d px)", obstacleRadius);
     ImGui::BulletText("SPACE: Clear waves");
     ImGui::BulletText("+/- or [/]: Time speed");
-    ImGui::BulletText("1: 20x slower | 0: real-time");
+    ImGui::BulletText("2: 1000x slower | 1: 20x | 0: max (0.25x)");
     ImGui::BulletText("UP/DOWN: Sound speed");
     ImGui::BulletText("Shift+UP/DOWN: Volume");
     ImGui::BulletText("M: Mute audio (%s)", (audioOutput && audioOutput->isMuted()) ? "ON" : "OFF");

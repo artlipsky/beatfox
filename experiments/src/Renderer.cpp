@@ -28,6 +28,10 @@ Renderer::~Renderer() {
     if (VBO) glDeleteBuffers(1, &VBO);
     if (EBO) glDeleteBuffers(1, &EBO);
     if (shaderProgram) glDeleteProgram(shaderProgram);
+
+    if (gridVAO) glDeleteVertexArrays(1, &gridVAO);
+    if (gridVBO) glDeleteBuffers(1, &gridVBO);
+    if (gridShaderProgram) glDeleteProgram(gridShaderProgram);
 }
 
 bool Renderer::initialize() {
@@ -39,6 +43,12 @@ bool Renderer::initialize() {
     glUseProgram(shaderProgram);
     projectionLoc = glGetUniformLocation(shaderProgram, "projection");
 
+    // Load grid shaders
+    if (!loadGridShaders()) {
+        std::cerr << "Failed to load grid shaders" << std::endl;
+        return false;
+    }
+
     // Enable blending for transparency
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -47,6 +57,13 @@ bool Renderer::initialize() {
 }
 
 void Renderer::setupBuffers(int gridWidth, int gridHeight) {
+    // Store grid dimensions for aspect ratio calculation
+    this->gridWidth = gridWidth;
+    this->gridHeight = gridHeight;
+
+    // Recalculate viewport with new aspect ratio
+    calculateRoomViewport();
+
     // Clean up old buffers if they exist
     if (VAO) glDeleteVertexArrays(1, &VAO);
     if (VBO) glDeleteBuffers(1, &VBO);
@@ -160,6 +177,11 @@ void Renderer::render(const WaveSimulation& simulation) {
     glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, 0);
     glBindVertexArray(0);
 
+    // Draw grid overlay
+    if (gridEnabled) {
+        renderGrid(gridWidth, gridHeight);
+    }
+
     // Reset viewport to full window for UI rendering
     glViewport(0, 0, windowWidth, windowHeight);
 }
@@ -173,8 +195,10 @@ void Renderer::resize(int width, int height) {
 
 void Renderer::calculateRoomViewport() {
     // Calculate viewport to center the room with padding
-    // Room aspect ratio is 2:1 (20m x 10m)
-    float roomAspect = 2.0f;  // width / height
+    // Calculate aspect ratio dynamically based on grid dimensions
+    float roomAspect = (gridWidth > 0 && gridHeight > 0)
+        ? static_cast<float>(gridWidth) / static_cast<float>(gridHeight)
+        : 2.0f;  // Default fallback
 
     // Available space after padding
     float availableWidth = windowWidth - 2 * padding;
@@ -201,6 +225,12 @@ void Renderer::getRoomViewport(float& left, float& right, float& bottom, float& 
     right = roomViewportX + roomViewportWidth;
     bottom = roomViewportY;
     top = roomViewportY + roomViewportHeight;
+}
+
+void Renderer::updateGridDimensions(int width, int height) {
+    gridWidth = width;
+    gridHeight = height;
+    calculateRoomViewport();
 }
 
 GLuint Renderer::compileShader(GLenum type, const std::string& source) {
@@ -266,4 +296,145 @@ bool Renderer::loadShaders() {
     glDeleteShader(fragmentShader);
 
     return true;
+}
+
+bool Renderer::loadGridShaders() {
+    // Vertex shader for grid lines with major/minor attribute
+    const char* gridVertexSource = R"(
+        #version 330 core
+        layout (location = 0) in vec2 aPos;
+        layout (location = 1) in float aMajor;
+        uniform mat4 projection;
+        out float isMajor;
+        void main() {
+            gl_Position = projection * vec4(aPos, 0.0, 1.0);
+            isMajor = aMajor;
+        }
+    )";
+
+    // Fragment shader for grid lines with major/minor distinction
+    const char* gridFragmentSource = R"(
+        #version 330 core
+        in float isMajor;
+        out vec4 FragColor;
+        void main() {
+            if (isMajor > 0.5) {
+                // Major lines: bright white, more opaque
+                FragColor = vec4(1.0, 1.0, 1.0, 0.35);
+            } else {
+                // Minor lines: subtle gray, low opacity
+                FragColor = vec4(0.6, 0.6, 0.6, 0.12);
+            }
+        }
+    )";
+
+    GLuint vertexShader = compileShader(GL_VERTEX_SHADER, gridVertexSource);
+    GLuint fragmentShader = compileShader(GL_FRAGMENT_SHADER, gridFragmentSource);
+
+    if (!vertexShader || !fragmentShader) {
+        return false;
+    }
+
+    gridShaderProgram = glCreateProgram();
+    glAttachShader(gridShaderProgram, vertexShader);
+    glAttachShader(gridShaderProgram, fragmentShader);
+    glLinkProgram(gridShaderProgram);
+
+    int success;
+    glGetProgramiv(gridShaderProgram, GL_LINK_STATUS, &success);
+    if (!success) {
+        char infoLog[512];
+        glGetProgramInfoLog(gridShaderProgram, 512, nullptr, infoLog);
+        std::cerr << "Grid shader linking failed: " << infoLog << std::endl;
+        return false;
+    }
+
+    glDeleteShader(vertexShader);
+    glDeleteShader(fragmentShader);
+
+    // Get uniform locations
+    gridProjectionLoc = glGetUniformLocation(gridShaderProgram, "projection");
+
+    return true;
+}
+
+void Renderer::setupGridBuffers(int gridWidth, int gridHeight) {
+    // Clean up old buffers if they exist
+    if (gridVAO) glDeleteVertexArrays(1, &gridVAO);
+    if (gridVBO) glDeleteBuffers(1, &gridVBO);
+
+    std::vector<float> gridVertices;  // Format: x, y, isMajor
+
+    // Generate vertical grid lines (along X axis)
+    for (int x = 0; x <= gridWidth; x += gridSpacing) {
+        float px = 2.0f * x / (gridWidth - 1) - 1.0f;
+
+        // Determine if this is a major grid line (every 10th line)
+        float isMajor = (x % (gridSpacing * 10) == 0) ? 1.0f : 0.0f;
+
+        // Line from bottom to top (2 vertices per line)
+        gridVertices.push_back(px);       // x1
+        gridVertices.push_back(-1.0f);    // y1
+        gridVertices.push_back(isMajor);  // major flag
+        gridVertices.push_back(px);       // x2
+        gridVertices.push_back(1.0f);     // y2
+        gridVertices.push_back(isMajor);  // major flag
+    }
+
+    // Generate horizontal grid lines (along Y axis)
+    for (int y = 0; y <= gridHeight; y += gridSpacing) {
+        float py = 2.0f * y / (gridHeight - 1) - 1.0f;
+
+        // Determine if this is a major grid line (every 10th line)
+        float isMajor = (y % (gridSpacing * 10) == 0) ? 1.0f : 0.0f;
+
+        // Line from left to right (2 vertices per line)
+        gridVertices.push_back(-1.0f);    // x1
+        gridVertices.push_back(py);       // y1
+        gridVertices.push_back(isMajor);  // major flag
+        gridVertices.push_back(1.0f);     // x2
+        gridVertices.push_back(py);       // y2
+        gridVertices.push_back(isMajor);  // major flag
+    }
+
+    gridLineCount = gridVertices.size() / 3;  // Total vertices (3 floats per vertex)
+
+    // Create and bind VAO
+    glGenVertexArrays(1, &gridVAO);
+    glBindVertexArray(gridVAO);
+
+    // Create and bind VBO
+    glGenBuffers(1, &gridVBO);
+    glBindBuffer(GL_ARRAY_BUFFER, gridVBO);
+    glBufferData(GL_ARRAY_BUFFER, gridVertices.size() * sizeof(float), gridVertices.data(), GL_STATIC_DRAW);
+
+    // Position attribute (location = 0)
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+
+    // Major flag attribute (location = 1)
+    glVertexAttribPointer(1, 1, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)(2 * sizeof(float)));
+    glEnableVertexAttribArray(1);
+
+    glBindVertexArray(0);
+}
+
+void Renderer::renderGrid(int gridWidth, int gridHeight) {
+    // Setup grid buffers if not already done
+    if (gridVAO == 0) {
+        setupGridBuffers(gridWidth, gridHeight);
+    }
+
+    // Use grid shader
+    glUseProgram(gridShaderProgram);
+
+    // Set projection matrix
+    glm::mat4 projection = glm::ortho(-1.0f, 1.0f, -1.0f, 1.0f, -1.0f, 1.0f);
+    glUniformMatrix4fv(gridProjectionLoc, 1, GL_FALSE, &projection[0][0]);
+
+    // Bind VAO and draw all grid lines
+    // The shader will distinguish major/minor based on the vertex attribute
+    glBindVertexArray(gridVAO);
+    glDrawArrays(0x0001, 0, gridLineCount);  // 0x0001 = GL_LINES
+    glBindVertexArray(0);
 }

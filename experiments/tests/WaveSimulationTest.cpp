@@ -318,6 +318,154 @@ TEST_F(WaveSimulationTest, ObstaclesBlockWavePropagation) {
     EXPECT_GT(totalEnergy, 0.0f) << "Simulation should maintain energy with obstacles";
 }
 
+// ===== IMPULSE RADIUS PARAMETER TESTS =====
+
+TEST_F(WaveSimulationTest, AddPressureSourceWithCustomRadius) {
+    // Test that different radius values create different impulse spreads
+    auto sim1 = std::make_unique<WaveSimulation>(100, 50);
+    auto sim2 = std::make_unique<WaveSimulation>(100, 50);
+
+    // Same pressure, different radius
+    sim1->addPressureSource(50, 25, 10.0f, 1);  // Small radius
+    sim2->addPressureSource(50, 25, 10.0f, 5);  // Large radius
+
+    const float* data1 = sim1->getData();
+    const float* data2 = sim2->getData();
+
+    // Check that larger radius affects more grid points
+    int nonZeroCount1 = 0, nonZeroCount2 = 0;
+    int size = 100 * 50;
+
+    for (int i = 0; i < size; i++) {
+        if (std::abs(data1[i]) > 1e-6f) nonZeroCount1++;
+        if (std::abs(data2[i]) > 1e-6f) nonZeroCount2++;
+    }
+
+    EXPECT_GT(nonZeroCount2, nonZeroCount1)
+        << "Larger radius should affect more grid points";
+    EXPECT_GT(nonZeroCount1, 0) << "Radius=1 should affect at least some points";
+    EXPECT_GT(nonZeroCount2, 0) << "Radius=5 should affect at least some points";
+}
+
+TEST_F(WaveSimulationTest, AddPressureSourceRadiusAffectsPeakPressure) {
+    // Test that larger radius creates more diffuse (lower peak) pressure
+    auto sim1 = std::make_unique<WaveSimulation>(100, 50);
+    auto sim2 = std::make_unique<WaveSimulation>(100, 50);
+
+    // Same pressure, different radius
+    sim1->addPressureSource(50, 25, 10.0f, 1);  // Small radius, concentrated
+    sim2->addPressureSource(50, 25, 10.0f, 10); // Large radius, diffuse
+
+    const float* data1 = sim1->getData();
+    const float* data2 = sim2->getData();
+
+    // Find maximum pressure in each
+    float maxPressure1 = 0.0f, maxPressure2 = 0.0f;
+    int size = 100 * 50;
+
+    for (int i = 0; i < size; i++) {
+        maxPressure1 = std::max(maxPressure1, std::abs(data1[i]));
+        maxPressure2 = std::max(maxPressure2, std::abs(data2[i]));
+    }
+
+    // Smaller radius should create higher peak (more concentrated energy)
+    EXPECT_GT(maxPressure1, maxPressure2)
+        << "Smaller radius should create higher peak pressure";
+    EXPECT_GT(maxPressure1, 0.0f) << "Radius=1 should create non-zero pressure";
+    EXPECT_GT(maxPressure2, 0.0f) << "Radius=10 should create non-zero pressure";
+}
+
+TEST_F(WaveSimulationTest, AddPressureSourceRadiusEdgeCases) {
+    // Test minimum radius (should work)
+    EXPECT_NO_THROW(simulation->addPressureSource(50, 25, 5.0f, 1));
+
+    const float* data1 = simulation->getData();
+    int centerIdx = 25 * simulation->getWidth() + 50;
+    EXPECT_GT(std::abs(data1[centerIdx]), 0.0f)
+        << "Radius=1 should create pressure at center";
+
+    simulation->clear();
+
+    // Test maximum UI-allowed radius (should work)
+    EXPECT_NO_THROW(simulation->addPressureSource(50, 25, 5.0f, 10));
+
+    const float* data2 = simulation->getData();
+    EXPECT_GT(std::abs(data2[centerIdx]), 0.0f)
+        << "Radius=10 should create pressure at center";
+
+    simulation->clear();
+
+    // Test that zero radius is rejected (validation)
+    size_t beforeCount = 0;
+    const float* dataBefore = simulation->getData();
+    for (int i = 0; i < simulation->getWidth() * simulation->getHeight(); i++) {
+        if (std::abs(dataBefore[i]) > 1e-9f) beforeCount++;
+    }
+
+    simulation->addPressureSource(50, 25, 5.0f, 0);  // Invalid: too small
+
+    const float* dataAfter = simulation->getData();
+    size_t afterCount = 0;
+    for (int i = 0; i < simulation->getWidth() * simulation->getHeight(); i++) {
+        if (std::abs(dataAfter[i]) > 1e-9f) afterCount++;
+    }
+
+    EXPECT_EQ(beforeCount, afterCount)
+        << "Zero radius should be rejected (no pressure added)";
+}
+
+TEST_F(WaveSimulationTest, AddPressureSourceRadiusValidation) {
+    // Test that negative radius is rejected
+    simulation->addPressureSource(50, 25, 5.0f, -1);  // Invalid: negative
+
+    const float* data = simulation->getData();
+    int size = simulation->getWidth() * simulation->getHeight();
+
+    bool hasNonZero = false;
+    for (int i = 0; i < size; i++) {
+        if (std::abs(data[i]) > 1e-9f) {
+            hasNonZero = true;
+            break;
+        }
+    }
+
+    EXPECT_FALSE(hasNonZero)
+        << "Negative radius should be rejected (no pressure added)";
+
+    simulation->clear();
+
+    // Test that excessively large radius is rejected (> 50 pixels)
+    simulation->addPressureSource(50, 25, 5.0f, 100);  // Invalid: too large
+
+    const float* data2 = simulation->getData();
+    bool hasNonZero2 = false;
+    for (int i = 0; i < size; i++) {
+        if (std::abs(data2[i]) > 1e-9f) {
+            hasNonZero2 = true;
+            break;
+        }
+    }
+
+    EXPECT_FALSE(hasNonZero2)
+        << "Excessively large radius should be rejected (no pressure added)";
+}
+
+TEST_F(WaveSimulationTest, AddPressureSourceDefaultRadius) {
+    // Test that default radius parameter works (backward compatibility)
+    simulation->addPressureSource(50, 25, 5.0f);  // Uses default radius=2
+
+    const float* data = simulation->getData();
+    int centerIdx = 25 * simulation->getWidth() + 50;
+
+    EXPECT_GT(std::abs(data[centerIdx]), 0.0f)
+        << "Default radius should create pressure at center";
+
+    // Verify some spread (radius > 0)
+    int nearbyIdx = 25 * simulation->getWidth() + 51;
+    EXPECT_GT(std::abs(data[nearbyIdx]), 0.0f)
+        << "Default radius should create spread beyond center";
+}
+
 int main(int argc, char **argv) {
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();

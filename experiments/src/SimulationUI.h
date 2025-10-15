@@ -2,12 +2,14 @@
 
 #include <imgui.h>
 #include <memory>
+#include <functional>
 
 // Forward declarations
 class WaveSimulation;
 class AudioOutput;
 class CoordinateMapper;
 class AudioSample;
+class SimulationEngine;
 
 /*
  * SimulationUI - Presentation layer for acoustic simulation
@@ -47,6 +49,7 @@ public:
      * @param loadedSample Reference to loadedSample shared_ptr
      */
     SimulationUI(
+        SimulationEngine* engine,
         WaveSimulation* sim,
         AudioOutput* audio,
         CoordinateMapper* mapper,
@@ -59,7 +62,9 @@ public:
         int& selectedPreset,
         float& sourceVolumeDb,
         bool& sourceLoop,
-        std::shared_ptr<AudioSample>& loadedSample
+        std::shared_ptr<AudioSample>& loadedSample,
+        float& impulsePressure,
+        int& impulseRadius
     );
 
     ~SimulationUI() = default;
@@ -102,8 +107,19 @@ public:
      */
     void renderHelpButton();
 
+    /*
+     * Update simulation pointer after resize
+     *
+     * Called by SimulationEngine::resizeSimulation() to update
+     * the internal simulation pointer without destroying the UI object.
+     *
+     * @param newSim Pointer to the new WaveSimulation instance
+     */
+    void updateSimulationPointer(WaveSimulation* newSim);
+
 private:
     // References to simulation components (not owned)
+    SimulationEngine* simulationEngine;
     WaveSimulation* simulation;
     AudioOutput* audioOutput;
     CoordinateMapper* coordinateMapper;
@@ -119,4 +135,6 @@ private:
     float& sourceVolumeDb;
     bool& sourceLoop;
     std::shared_ptr<AudioSample>& loadedSample;
+    float& impulsePressure;
+    int& impulseRadius;
 };

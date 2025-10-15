@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Typical Krasnodar 1-Bedroom Apartment Layout
+  Total area: ~45 m² (8m × 6m internal dimensions)
+
+  Layout based on typical Russian apartment standards:
+  - Living room: ~18 m² (4.5m × 4m)
+  - Bedroom: ~12 m² (3m × 4m)
+  - Kitchen: ~6 m² (2m × 3m)
+  - Bathroom: ~4 m² (2m × 2m)
+  - Hallway: ~5 m²
+
+  Scale: Designed for simulation with 1 pixel = 8.6mm
+  SVG dimensions: 930×700 = 8m × 6m (internal space)
+  With walls: 1000×800 total
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 800" width="1000" height="800">
+  <!-- Background (empty space for sound propagation) -->
+  <rect x="0" y="0" width="1000" height="800" fill="white"/>
+
+  <!-- Outer walls (35px = ~30cm thick, typical Soviet concrete) -->
+  <rect x="0" y="0" width="1000" height="35" fill="black"/>        <!-- Top wall -->
+  <rect x="0" y="765" width="1000" height="35" fill="black"/>      <!-- Bottom wall -->
+  <rect x="0" y="0" width="35" height="800" fill="black"/>         <!-- Left wall -->
+  <rect x="965" y="0" width="35" height="800" fill="black"/>       <!-- Right wall -->
+
+  <!-- Interior walls (20px = ~17cm thick, typical interior) -->
+
+  <!-- Hallway walls (vertical corridor down the middle-left) -->
+  <!-- Hallway runs from top to bottom, width ~1.2m -->
+  <rect x="180" y="35" width="20" height="230" fill="black"/>      <!-- Hallway right wall (top section) -->
+  <rect x="180" y="315" width="20" height="200" fill="black"/>     <!-- Hallway right wall (bottom section) -->
+
+  <!-- Bedroom wall (left side, top) -->
+  <rect x="35" y="265" width="145" height="20" fill="black"/>      <!-- Bedroom bottom wall -->
+
+  <!-- Kitchen wall (bottom left) -->
+  <rect x="35" y="515" width="345" height="20" fill="black"/>      <!-- Kitchen top wall -->
+  <rect x="360" y="535" width="20" height="230" fill="black"/>     <!-- Kitchen right wall -->
+
+  <!-- Bathroom wall (between hallway and kitchen) -->
+  <rect x="180" y="515" width="180" height="20" fill="black"/>     <!-- Bathroom top wall (part of kitchen wall) -->
+
+  <!-- Living room wall (right side) -->
+  <rect x="380" y="285" width="585" height="20" fill="black"/>     <!-- Living room top wall -->
+
+  <!-- Doors (openings in walls, 90px = ~77cm wide, typical Russian door) -->
+
+  <!-- Bedroom door (opening in hallway wall) -->
+  <rect x="180" y="150" width="20" height="90" fill="white"/>      <!-- Door opening -->
+
+  <!-- Kitchen door (opening in hallway wall) -->
+  <rect x="180" y="600" width="20" height="90" fill="white"/>      <!-- Door opening -->
+
+  <!-- Bathroom door (opening in hallway wall) -->
+  <rect x="180" y="420" width="20" height="90" fill="white"/>      <!-- Door opening -->
+
+  <!-- Living room door (opening in hallway wall) -->
+  <rect x="180" y="285" width="200" height="20" fill="white"/>     <!-- Door opening (wider, typical for living room) -->
+
+  <!-- Entry door (main entrance, opening in top wall near hallway) -->
+  <rect x="90" y="35" width="90" height="20" fill="white"/>        <!-- Entry door opening -->
+
+  <!-- Furniture and fixtures (for acoustic interest) -->
+
+  <!-- Kitchen appliances -->
+  <rect x="60" y="560" width="80" height="60" fill="gray"/>        <!-- Kitchen counter/stove -->
+  <rect x="60" y="680" width="60" height="60" fill="gray"/>        <!-- Refrigerator -->
+
+  <!-- Bathroom fixtures -->
+  <rect x="220" y="560" width="120" height="60" fill="gray"/>      <!-- Bathtub -->
+  <rect x="220" y="680" width="50" height="50" fill="gray"/>       <!-- Toilet -->
+
+  <!-- Living room furniture -->
+  <rect x="420" y="340" width="200" height="120" fill="gray"/>     <!-- Sofa -->
+  <rect x="750" y="340" width="120" height="80" fill="gray"/>      <!-- TV stand -->
+
+  <!-- Bedroom furniture -->
+  <rect x="60" y="80" width="100" height="160" fill="gray"/>       <!-- Bed -->
+
+  <!-- Balcony (typical in Russian apartments, attached to living room) -->
+  <rect x="850" y="305" width="115" height="180" fill="lightgray" stroke="black" stroke-width="3"/>  <!-- Balcony -->
+  <line x1="850" y1="305" x2="850" y2="485" stroke="white" stroke-width="15"/>  <!-- Balcony door opening -->
+
+  <!-- Room labels (for reference, won't affect simulation) -->
+  <text x="100" y="170" font-family="Arial" font-size="16" fill="darkgray">Bedroom</text>
+  <text x="100" y="650" font-family="Arial" font-size="16" fill="darkgray">Kitchen</text>
+  <text x="220" y="650" font-family="Arial" font-size="14" fill="darkgray">Bath</text>
+  <text x="120" y="400" font-family="Arial" font-size="14" fill="darkgray">Hall</text>
+  <text x="550" y="500" font-family="Arial" font-size="18" fill="darkgray">Living Room</text>
+  <text x="880" y="400" font-family="Arial" font-size="12" fill="darkgray">Balcony</text>
+</svg>

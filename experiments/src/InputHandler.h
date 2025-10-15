@@ -76,6 +76,8 @@ public:
         float& sourceVolumeDb,
         bool& sourceLoop,
         std::shared_ptr<AudioSample>& loadedSample,
+        float& impulsePressure,
+        int& impulseRadius,
         bool& mousePressed,
         double& lastMouseX,
         double& lastMouseY,
@@ -152,6 +154,16 @@ public:
      */
     void handleKey(GLFWwindow* window, int key, int scancode, int action, int mods);
 
+    /*
+     * Update simulation pointer after resize
+     *
+     * Called by SimulationEngine::resizeSimulation() to update
+     * the internal simulation pointer without destroying the InputHandler object.
+     *
+     * @param newSim Pointer to the new WaveSimulation instance
+     */
+    void updateSimulationPointer(WaveSimulation* newSim);
+
 private:
     /*
      * Convert screen coordinates to grid coordinates
@@ -185,6 +197,8 @@ private:
     float& sourceVolumeDb;
     bool& sourceLoop;
     std::shared_ptr<AudioSample>& loadedSample;
+    float& impulsePressure;
+    int& impulseRadius;
     bool& mousePressed;
     double& lastMouseX;
     double& lastMouseY;
