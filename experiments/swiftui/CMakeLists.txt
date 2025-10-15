@@ -30,6 +30,7 @@ set(SWIFT_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/BeatfoxSimulation/Sources/SimulationView.swift
     ${CMAKE_CURRENT_SOURCE_DIR}/BeatfoxSimulation/Sources/ControlPanelView.swift
     ${CMAKE_CURRENT_SOURCE_DIR}/BeatfoxSimulation/Sources/SimulationViewModel.swift
+    ${CMAKE_CURRENT_SOURCE_DIR}/BeatfoxSimulation/Sources/WaveVisualizationView.swift
 )
 
 # Custom target to build SwiftUI app using swiftc directly

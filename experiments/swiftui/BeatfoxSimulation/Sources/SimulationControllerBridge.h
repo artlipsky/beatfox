@@ -83,6 +83,9 @@ NS_ASSUME_NONNULL_BEGIN
 // Simulation update (call once per frame)
 - (void)updateWithDeltaTime:(float)dt;
 
+// Rendering data access
+- (const float *)getPressureFieldData;
+
 @end
 
 NS_ASSUME_NONNULL_END

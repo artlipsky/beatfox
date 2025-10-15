@@ -223,4 +223,11 @@
     controller->updateState();
 }
 
+- (const float *)getPressureFieldData {
+    if (simulation) {
+        return simulation->getData();
+    }
+    return nullptr;
+}
+
 @end

@@ -12,7 +12,7 @@ import Combine
 @MainActor
 class SimulationViewModel: ObservableObject {
     // Bridge to C++ controller
-    private let bridge: SimulationControllerBridge
+    let bridge: SimulationControllerBridge  // Public so views can access pressure data
 
     // Timer for simulation updates
     private var updateTimer: Timer?

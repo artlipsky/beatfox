@@ -12,47 +12,44 @@ struct SimulationView: View {
 
     var body: some View {
         ZStack {
-            // Main simulation area (placeholder for now - will add Metal rendering later)
-            Color.black
-                .overlay(
-                    Text("Acoustic Wave Simulation\n\nClick to add impulse")
-                        .foregroundColor(.white.opacity(0.5))
-                        .multilineTextAlignment(.center)
-                        .font(.title3)
-                )
-                .contentShape(Rectangle())
-                .onTapGesture { location in
-                    viewModel.addImpulse(at: location)
-                }
+            // Main simulation visualization
+            WaveVisualizationView(viewModel: viewModel)
 
-            // Help button (top-left)
+            // Help button (top-right when panel is hidden)
             if !viewModel.showHelp {
                 VStack {
                     HStack {
+                        Spacer()
                         Button(action: {
                             viewModel.toggleHelp()
                         }) {
-                            Label("Help (H)", systemImage: "questionmark.circle")
+                            Label("Show Controls (H)", systemImage: "sidebar.left")
                                 .padding(12)
                                 .background(Color(NSColor.windowBackgroundColor).opacity(0.9))
                                 .cornerRadius(8)
                         }
                         .buttonStyle(.plain)
                         .padding()
-
-                        Spacer()
                     }
                     Spacer()
                 }
             }
 
-            // Control Panel (right side)
+            // Control Panel (left side with scroll)
             if viewModel.showHelp {
-                HStack {
+                HStack(spacing: 0) {
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 0) {
+                            ControlPanelView(viewModel: viewModel)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .top)
+                    }
+                    .frame(width: 320)
+                    .background(Color(NSColor.windowBackgroundColor).opacity(0.95))
+
                     Spacer()
-                    ControlPanelView(viewModel: viewModel)
                 }
-                .transition(.move(edge: .trailing))
+                .transition(.move(edge: .leading))
             }
         }
         .frame(minWidth: 800, minHeight: 600)
