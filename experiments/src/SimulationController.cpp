@@ -5,6 +5,8 @@
 #include "CoordinateMapper.h"
 #include "SimulationEngine.h"
 #include "AudioSource.h"
+#include "AudioFileLoader.h"
+#include "DampingPreset.h"
 #include <iostream>
 
 SimulationController::SimulationController(
@@ -113,6 +115,43 @@ void SimulationController::processCommand(const UICommand& command) {
 
         case Type::TOGGLE_SOURCE_MODE:
             handleToggleSourceMode();
+            break;
+
+        // UI panel commands
+        case Type::APPLY_DAMPING_PRESET:
+            handleApplyDampingPreset(static_cast<const ApplyDampingPresetCommand&>(command));
+            break;
+
+        case Type::CLEAR_AUDIO_SOURCES:
+            handleClearAudioSources();
+            break;
+
+        case Type::LOAD_AUDIO_FILE:
+            handleLoadAudioFile(static_cast<const LoadAudioFileCommand&>(command));
+            break;
+
+        case Type::SET_SHOW_HELP:
+            handleSetShowHelp(static_cast<const SetShowHelpCommand&>(command));
+            break;
+
+        case Type::SET_SELECTED_PRESET:
+            handleSetSelectedPreset(static_cast<const SetSelectedPresetCommand&>(command));
+            break;
+
+        case Type::SET_SOURCE_VOLUME_DB:
+            handleSetSourceVolumeDb(static_cast<const SetSourceVolumeDbCommand&>(command));
+            break;
+
+        case Type::SET_SOURCE_LOOP:
+            handleSetSourceLoop(static_cast<const SetSourceLoopCommand&>(command));
+            break;
+
+        case Type::SET_IMPULSE_PRESSURE:
+            handleSetImpulsePressure(static_cast<const SetImpulsePressureCommand&>(command));
+            break;
+
+        case Type::SET_IMPULSE_RADIUS:
+            handleSetImpulseRadius(static_cast<const SetImpulseRadiusCommand&>(command));
             break;
 
         default:
@@ -344,4 +383,70 @@ void SimulationController::handleToggleSourceMode() {
         state.obstacleMode = false;
         state.listenerMode = false;
     }
+}
+
+// UI Panel command handlers
+
+void SimulationController::handleApplyDampingPreset(const ApplyDampingPresetCommand& cmd) {
+    if (!simulation) return;
+
+    DampingPreset::Type presetType;
+    switch (cmd.presetType) {
+        case ApplyDampingPresetCommand::PresetType::REALISTIC:
+            presetType = DampingPreset::Type::REALISTIC;
+            break;
+        case ApplyDampingPresetCommand::PresetType::VISUALIZATION:
+            presetType = DampingPreset::Type::VISUALIZATION;
+            break;
+        case ApplyDampingPresetCommand::PresetType::ANECHOIC:
+            presetType = DampingPreset::Type::ANECHOIC;
+            break;
+    }
+
+    simulation->applyDampingPreset(DampingPreset::fromType(presetType));
+}
+
+void SimulationController::handleClearAudioSources() {
+    if (simulation) {
+        simulation->clearAudioSources();
+    }
+}
+
+void SimulationController::handleLoadAudioFile(const LoadAudioFileCommand& cmd) {
+    std::cout << "Loading audio file: " << cmd.filename << std::endl;
+
+    auto sample = AudioFileLoader::loadFile(cmd.filename, 48000);
+
+    if (sample) {
+        state.loadedSample = sample;
+        state.selectedPreset = 4;  // Switch to "Loaded File" preset
+        std::cout << "Loaded: " << sample->getName() << " (" << sample->getDuration() << "s)" << std::endl;
+        std::cout << "Switched to 'Loaded File' preset" << std::endl;
+    } else {
+        std::cerr << "Failed to load: " << AudioFileLoader::getLastError() << std::endl;
+    }
+}
+
+void SimulationController::handleSetShowHelp(const SetShowHelpCommand& cmd) {
+    state.showHelp = cmd.show;
+}
+
+void SimulationController::handleSetSelectedPreset(const SetSelectedPresetCommand& cmd) {
+    state.selectedPreset = cmd.presetIndex;
+}
+
+void SimulationController::handleSetSourceVolumeDb(const SetSourceVolumeDbCommand& cmd) {
+    state.sourceVolumeDb = cmd.volumeDb;
+}
+
+void SimulationController::handleSetSourceLoop(const SetSourceLoopCommand& cmd) {
+    state.sourceLoop = cmd.loop;
+}
+
+void SimulationController::handleSetImpulsePressure(const SetImpulsePressureCommand& cmd) {
+    state.impulsePressure = cmd.pressure;
+}
+
+void SimulationController::handleSetImpulseRadius(const SetImpulseRadiusCommand& cmd) {
+    state.impulseRadius = cmd.radius;
 }

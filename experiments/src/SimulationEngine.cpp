@@ -239,9 +239,16 @@ void SimulationEngine::run() {
 void SimulationEngine::update() {
     const float fixedDt = 1.0f / 60.0f; // Fixed timestep for physics
 
-    // Collect and process commands from input handler
-    auto commands = inputHandler->collectCommands();
-    controller->processCommands(commands);
+    // Collect commands from both input handler and UI
+    auto inputCommands = inputHandler->collectCommands();
+    auto uiCommands = simulationUI->collectCommands();
+
+    // Merge commands and process them
+    inputCommands.insert(inputCommands.end(),
+                         std::make_move_iterator(uiCommands.begin()),
+                         std::make_move_iterator(uiCommands.end()));
+
+    controller->processCommands(inputCommands);
 
     // Update controller state from simulation
     controller->updateState();

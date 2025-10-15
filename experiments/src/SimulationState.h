@@ -123,9 +123,17 @@ struct UICommand {
 
         // UI-only state changes
         TOGGLE_HELP,
+        SET_SHOW_HELP,
         TOGGLE_OBSTACLE_MODE,
         TOGGLE_LISTENER_MODE,
-        TOGGLE_SOURCE_MODE
+        TOGGLE_SOURCE_MODE,
+
+        // UI parameter settings (for UI panel controls)
+        SET_SELECTED_PRESET,
+        SET_SOURCE_VOLUME_DB,
+        SET_SOURCE_LOOP,
+        SET_IMPULSE_PRESSURE,
+        SET_IMPULSE_RADIUS
     };
 
     Type type;
@@ -227,9 +235,67 @@ struct ToggleAudioSourcePlaybackCommand : UICommand {
         : UICommand(Type::PLAY_AUDIO_SOURCE), sourceIndex(idx) {}
 };
 
+struct ApplyDampingPresetCommand : UICommand {
+    enum class PresetType { REALISTIC, VISUALIZATION, ANECHOIC };
+    PresetType presetType;
+
+    explicit ApplyDampingPresetCommand(PresetType pt)
+        : UICommand(Type::APPLY_DAMPING_PRESET), presetType(pt) {}
+};
+
+struct LoadAudioFileCommand : UICommand {
+    std::string filename;
+
+    explicit LoadAudioFileCommand(const std::string& file)
+        : UICommand(Type::LOAD_AUDIO_FILE), filename(file) {}
+};
+
+struct SetSelectedPresetCommand : UICommand {
+    int presetIndex;
+
+    explicit SetSelectedPresetCommand(int idx)
+        : UICommand(Type::SET_SELECTED_PRESET), presetIndex(idx) {}
+};
+
+struct SetSourceVolumeDbCommand : UICommand {
+    float volumeDb;
+
+    explicit SetSourceVolumeDbCommand(float vol)
+        : UICommand(Type::SET_SOURCE_VOLUME_DB), volumeDb(vol) {}
+};
+
+struct SetSourceLoopCommand : UICommand {
+    bool loop;
+
+    explicit SetSourceLoopCommand(bool l)
+        : UICommand(Type::SET_SOURCE_LOOP), loop(l) {}
+};
+
+struct SetImpulsePressureCommand : UICommand {
+    float pressure;
+
+    explicit SetImpulsePressureCommand(float p)
+        : UICommand(Type::SET_IMPULSE_PRESSURE), pressure(p) {}
+};
+
+struct SetImpulseRadiusCommand : UICommand {
+    int radius;
+
+    explicit SetImpulseRadiusCommand(int r)
+        : UICommand(Type::SET_IMPULSE_RADIUS), radius(r) {}
+};
+
+struct SetShowHelpCommand : UICommand {
+    bool show;
+
+    explicit SetShowHelpCommand(bool s)
+        : UICommand(Type::SET_SHOW_HELP), show(s) {}
+};
+
 // Simple commands (no parameters)
 using ClearWavesCommand = UICommand;
 using ClearObstaclesCommand = UICommand;
+using ClearAudioSourcesCommand = UICommand;
 using ToggleListenerCommand = UICommand;
 using ToggleMuteCommand = UICommand;
 using ToggleGridDisplayCommand = UICommand;

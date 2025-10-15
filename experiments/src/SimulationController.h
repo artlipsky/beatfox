@@ -130,4 +130,15 @@ private:
     void handleToggleObstacleMode();
     void handleToggleListenerMode();
     void handleToggleSourceMode();
+
+    // UI Panel command handlers
+    void handleApplyDampingPreset(const ApplyDampingPresetCommand& cmd);
+    void handleClearAudioSources();
+    void handleLoadAudioFile(const LoadAudioFileCommand& cmd);
+    void handleSetShowHelp(const SetShowHelpCommand& cmd);
+    void handleSetSelectedPreset(const SetSelectedPresetCommand& cmd);
+    void handleSetSourceVolumeDb(const SetSourceVolumeDbCommand& cmd);
+    void handleSetSourceLoop(const SetSourceLoopCommand& cmd);
+    void handleSetImpulsePressure(const SetImpulsePressureCommand& cmd);
+    void handleSetImpulseRadius(const SetImpulseRadiusCommand& cmd);
 };

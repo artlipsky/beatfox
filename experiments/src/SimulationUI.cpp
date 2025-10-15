@@ -28,6 +28,12 @@ void SimulationUI::updateSimulationPointer(WaveSimulation* newSim) {
     simulation = newSim;
 }
 
+std::vector<std::unique_ptr<UICommand>> SimulationUI::collectCommands() {
+    std::vector<std::unique_ptr<UICommand>> commands;
+    commands.swap(pendingCommands);
+    return commands;
+}
+
 void SimulationUI::render() {
     const auto& state = controller->getState();
 
@@ -119,12 +125,19 @@ void SimulationUI::renderAudioSourceMarkers() {
 }
 
 void SimulationUI::renderControlsPanel() {
-    // Get mutable state for ImGui widgets that modify values
-    auto& state = controller->getStateMutable();
+    // Read state (no mutations!)
+    const auto& state = controller->getState();
 
     ImGui::SetNextWindowPos(ImVec2(20, 20), ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowBgAlpha(0.9f);
-    ImGui::Begin("Controls", &state.showHelp, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings);
+
+    bool tempShowHelp = state.showHelp;
+    ImGui::Begin("Controls", &tempShowHelp, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings);
+
+    // Check if close button was clicked
+    if (tempShowHelp != state.showHelp) {
+        pendingCommands.push_back(std::make_unique<SetShowHelpCommand>(tempShowHelp));
+    }
 
     ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.5f, 0.8f, 1.0f, 1.0f));
     ImGui::Text("ACOUSTIC SIMULATION");
@@ -184,7 +197,9 @@ void SimulationUI::renderControlsPanel() {
         // Radio button for each preset type
         bool isRealistic = (currentPreset.getType() == DampingPreset::Type::REALISTIC);
         if (ImGui::RadioButton("Realistic", isRealistic)) {
-            simulation->applyDampingPreset(DampingPreset::fromType(DampingPreset::Type::REALISTIC));
+            pendingCommands.push_back(
+                std::make_unique<ApplyDampingPresetCommand>(ApplyDampingPresetCommand::PresetType::REALISTIC)
+            );
         }
         if (ImGui::IsItemHovered()) {
             ImGui::SetTooltip("Real-world room acoustics\nAir absorption: 0.3%%, Wall reflection: 85%%");
@@ -192,7 +207,9 @@ void SimulationUI::renderControlsPanel() {
 
         bool isVisualization = (currentPreset.getType() == DampingPreset::Type::VISUALIZATION);
         if (ImGui::RadioButton("Visualization", isVisualization)) {
-            simulation->applyDampingPreset(DampingPreset::fromType(DampingPreset::Type::VISUALIZATION));
+            pendingCommands.push_back(
+                std::make_unique<ApplyDampingPresetCommand>(ApplyDampingPresetCommand::PresetType::VISUALIZATION)
+            );
         }
         if (ImGui::IsItemHovered()) {
             ImGui::SetTooltip("Minimal damping for clear wave patterns\n"
@@ -202,7 +219,9 @@ void SimulationUI::renderControlsPanel() {
 
         bool isAnechoic = (currentPreset.getType() == DampingPreset::Type::ANECHOIC);
         if (ImGui::RadioButton("Anechoic Chamber", isAnechoic)) {
-            simulation->applyDampingPreset(DampingPreset::fromType(DampingPreset::Type::ANECHOIC));
+            pendingCommands.push_back(
+                std::make_unique<ApplyDampingPresetCommand>(ApplyDampingPresetCommand::PresetType::ANECHOIC)
+            );
         }
         if (ImGui::IsItemHovered()) {
             ImGui::SetTooltip("No wall reflections (perfect absorption)\n"
@@ -243,10 +262,20 @@ void SimulationUI::renderControlsPanel() {
     ImGui::PopStyleColor();
 
     const char* presetNames[] = {"Kick Drum", "Snare Drum", "Tone (440Hz)", "Impulse", "Loaded File"};
-    ImGui::Combo("Sample", &state.selectedPreset, presetNames, 5);
+    int tempPreset = state.selectedPreset;
+    if (ImGui::Combo("Sample", &tempPreset, presetNames, 5)) {
+        pendingCommands.push_back(std::make_unique<SetSelectedPresetCommand>(tempPreset));
+    }
 
-    ImGui::SliderFloat("Volume (dB)", &state.sourceVolumeDb, -40.0f, 20.0f, "%.1f dB");
-    ImGui::Checkbox("Loop", &state.sourceLoop);
+    float tempVolumeDb = state.sourceVolumeDb;
+    if (ImGui::SliderFloat("Volume (dB)", &tempVolumeDb, -40.0f, 20.0f, "%.1f dB")) {
+        pendingCommands.push_back(std::make_unique<SetSourceVolumeDbCommand>(tempVolumeDb));
+    }
+
+    bool tempLoop = state.sourceLoop;
+    if (ImGui::Checkbox("Loop", &tempLoop)) {
+        pendingCommands.push_back(std::make_unique<SetSourceLoopCommand>(tempLoop));
+    }
 
     if (ImGui::Button("Load Audio File")) {
         auto selection = pfd::open_file("Load Audio Sample",
@@ -257,19 +286,7 @@ void SimulationUI::renderControlsPanel() {
 
         if (!selection.empty()) {
             std::string filename = selection[0];
-            std::cout << "Loading audio file: " << filename << std::endl;
-
-            auto sample = AudioFileLoader::loadFile(filename, 48000);
-
-            if (sample) {
-                // Store loaded sample in state
-                state.loadedSample = sample;
-                state.selectedPreset = 4;  // Switch to "Loaded File" preset
-                std::cout << "Loaded: " << sample->getName() << " (" << sample->getDuration() << "s)" << std::endl;
-                std::cout << "Switched to 'Loaded File' preset" << std::endl;
-            } else {
-                std::cerr << "Failed to load: " << AudioFileLoader::getLastError() << std::endl;
-            }
+            pendingCommands.push_back(std::make_unique<LoadAudioFileCommand>(filename));
         }
     }
 
@@ -280,7 +297,9 @@ void SimulationUI::renderControlsPanel() {
         ImGui::TextDisabled("Active Sources: %zu", sources.size());
 
         if (ImGui::Button("Clear All Sources")) {
-            simulation->clearAudioSources();
+            pendingCommands.push_back(
+                std::make_unique<ClearAudioSourcesCommand>(UICommand::Type::CLEAR_AUDIO_SOURCES)
+            );
         }
     }
 
@@ -294,9 +313,12 @@ void SimulationUI::renderControlsPanel() {
     ImGui::PopStyleColor();
 
     // Pressure amplitude slider with dB SPL conversion
-    ImGui::SliderFloat("Pressure (Pa)", &state.impulsePressure, 0.01f, 100.0f, "%.2f Pa", ImGuiSliderFlags_Logarithmic);
+    float tempPressure = state.impulsePressure;
+    if (ImGui::SliderFloat("Pressure (Pa)", &tempPressure, 0.01f, 100.0f, "%.2f Pa", ImGuiSliderFlags_Logarithmic)) {
+        pendingCommands.push_back(std::make_unique<SetImpulsePressureCommand>(tempPressure));
+    }
     if (ImGui::IsItemHovered()) {
-        const float dB_SPL = AcousticUtils::pressureToDbSpl(state.impulsePressure);
+        const float dB_SPL = AcousticUtils::pressureToDbSpl(tempPressure);
         ImGui::SetTooltip("Acoustic pressure amplitude\n"
                          "%.2f Pa ≈ %.0f dB SPL\n\n"
                          "Reference:\n"
@@ -306,19 +328,22 @@ void SimulationUI::renderControlsPanel() {
                          "5 Pa = hand clap (94 dB)\n"
                          "20 Pa = shout (100 dB)\n"
                          "100 Pa = very loud (114 dB)",
-                         state.impulsePressure, dB_SPL);
+                         tempPressure, dB_SPL);
     }
 
     // Impulse radius slider
-    ImGui::SliderInt("Spread (pixels)", &state.impulseRadius, 1, 10, "%d px");
+    int tempRadius = state.impulseRadius;
+    if (ImGui::SliderInt("Spread (pixels)", &tempRadius, 1, 10, "%d px")) {
+        pendingCommands.push_back(std::make_unique<SetImpulseRadiusCommand>(tempRadius));
+    }
     if (ImGui::IsItemHovered()) {
         const float pixelSizeMM = simulation ? simulation->getPixelSize() : 8.6f;
-        const float spreadMM = state.impulseRadius * pixelSizeMM;
+        const float spreadMM = tempRadius * pixelSizeMM;
         ImGui::SetTooltip("Spatial spread of impulse\n"
                          "%d pixels ≈ %.1f mm\n\n"
                          "Smaller = point source (sharp wave)\n"
                          "Larger = diffuse source (smooth wave)",
-                         state.impulseRadius, spreadMM);
+                         tempRadius, spreadMM);
     }
 
     // Show current impulse info
@@ -371,9 +396,6 @@ void SimulationUI::renderControlsPanel() {
 }
 
 void SimulationUI::renderHelpButton() {
-    // Get mutable state for button interaction
-    auto& state = controller->getStateMutable();
-
     // Show a small help button when panel is closed
     ImGui::SetNextWindowPos(ImVec2(20, 20), ImGuiCond_Always);
     ImGui::SetNextWindowBgAlpha(0.7f);
@@ -385,7 +407,7 @@ void SimulationUI::renderHelpButton() {
                 ImGuiWindowFlags_NoSavedSettings);
 
     if (ImGui::Button("? Help (H)")) {
-        state.showHelp = true;
+        pendingCommands.push_back(std::make_unique<SetShowHelpCommand>(true));
     }
 
     ImGui::End();
