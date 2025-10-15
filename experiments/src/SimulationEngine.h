@@ -7,6 +7,7 @@
 #include "Renderer.h"
 #include "AudioOutput.h"
 #include "CoordinateMapper.h"
+#include "SimulationController.h"
 #include "SimulationUI.h"
 #include "InputHandler.h"
 #include "AudioSample.h"
@@ -73,6 +74,7 @@ private:
     std::unique_ptr<Renderer> renderer;
     std::unique_ptr<AudioOutput> audioOutput;
     std::unique_ptr<CoordinateMapper> coordinateMapper;
+    std::unique_ptr<SimulationController> controller;  // NEW: Application logic layer
     std::unique_ptr<SimulationUI> simulationUI;
     std::unique_ptr<InputHandler> inputHandler;
 

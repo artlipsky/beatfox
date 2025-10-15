@@ -134,6 +134,15 @@ bool SimulationEngine::initializeSubsystems() {
         vBottom, vTop
     );
 
+    // Initialize controller (application logic layer)
+    controller = std::make_unique<SimulationController>(
+        simulation.get(),
+        audioOutput.get(),
+        renderer.get(),
+        coordinateMapper.get(),
+        this
+    );
+
     // Place listener at center of room by default
     simulation->setListenerPosition(gridWidth / 2, gridHeight / 2);
     simulation->setListenerEnabled(true);
@@ -366,6 +375,16 @@ void SimulationEngine::resizeSimulation(GridSize newSize) {
         gridWidth, gridHeight,
         vLeft, vRight,
         vBottom, vTop
+    );
+
+    // Update controller with new subsystems
+    controller.reset();
+    controller = std::make_unique<SimulationController>(
+        simulation.get(),
+        audioOutput.get(),
+        renderer.get(),
+        coordinateMapper.get(),
+        this
     );
 
     // Update UI and input handler with new simulation pointer

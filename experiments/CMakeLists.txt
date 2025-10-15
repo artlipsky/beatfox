@@ -146,6 +146,10 @@ add_library(SimulationCore STATIC
     src/MetalSimulationBackend.h
     src/CoordinateMapper.cpp
     src/CoordinateMapper.h
+    src/SimulationController.cpp
+    src/SimulationController.h
+    src/SimulationState.h
+    src/ISimulationView.h
     src/SimulationUI.cpp
     src/SimulationUI.h
     src/InputHandler.cpp
