@@ -139,6 +139,18 @@ bool SimulationEngine::initializeSubsystems() {
     simulation->setListenerEnabled(true);
     std::cout << "Listener initialized at center: (" << (gridWidth / 2) << ", " << (gridHeight / 2) << ")" << std::endl;
 
+    // Load default apartment layout
+    // Try to load the Krasnodar 2BR apartment layout by default
+    const std::string defaultLayout = "examples/svg_layouts/krasnodar_apartment_2br.svg";
+    std::cout << "\nLoading default apartment layout: " << defaultLayout << std::endl;
+    if (simulation->loadObstaclesFromSVG(defaultLayout)) {
+        std::cout << "Successfully loaded default apartment layout!" << std::endl;
+        std::cout << "Press 'C' to clear obstacles or 'L' to load a different layout" << std::endl;
+    } else {
+        std::cout << "Note: Could not load default layout (file may not exist)" << std::endl;
+        std::cout << "Press 'L' to load a room layout from examples/svg_layouts/" << std::endl;
+    }
+
     // Initialize UI
     simulationUI = std::make_unique<SimulationUI>(
         this, simulation.get(), audioOutput.get(), coordinateMapper.get(),

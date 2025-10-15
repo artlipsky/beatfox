@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Typical Krasnodar 2-Bedroom Apartment Layout
+  Total area: ~62 m² (10m × 7m internal dimensions)
+
+  Based on typical Russian apartment standards (Series 137):
+  - Living room: ~20 m² (5m × 4m) - main gathering space
+  - Master bedroom: ~14 m² (3.5m × 4m) - larger bedroom
+  - Second bedroom: ~10 m² (2.5m × 4m) - child's room or office
+  - Kitchen: ~9 m² (3m × 3m) - separate kitchen with dining area
+  - Bathroom: ~4 m² (2m × 2m) - combined bathroom
+  - Hallway: ~5 m² - central corridor connecting rooms
+
+  Acoustic features:
+  - Concrete outer walls (35cm) - excellent sound isolation
+  - Interior walls (17cm) - typical gypsum/concrete
+  - Furniture placement for realistic reflections
+  - Open doorways for sound propagation testing
+
+  Scale: Designed for simulation with 1 pixel = 8.6mm
+  SVG dimensions: 1163×814 = 10m × 7m (internal space)
+  With walls: 1240×900 total (matches X-LARGE grid size)
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1240 900" width="1240" height="900">
+  <!-- Background (empty space for sound propagation) -->
+  <rect x="0" y="0" width="1240" height="900" fill="white"/>
+
+  <!-- Outer walls (35px = ~30cm thick, typical Soviet concrete) -->
+  <rect x="0" y="0" width="1240" height="35" fill="black"/>        <!-- Top wall -->
+  <rect x="0" y="865" width="1240" height="35" fill="black"/>      <!-- Bottom wall -->
+  <rect x="0" y="0" width="35" height="900" fill="black"/>         <!-- Left wall -->
+  <rect x="1205" y="0" width="35" height="900" fill="black"/>      <!-- Right wall -->
+
+  <!-- Interior walls (20px = ~17cm thick, typical gypsum/concrete) -->
+
+  <!-- Main hallway wall (runs left-right, divides apartment horizontally) -->
+  <rect x="35" y="300" width="605" height="20" fill="black"/>      <!-- Hallway horizontal wall -->
+
+  <!-- Vertical hallway wall (separates bedrooms from hallway) -->
+  <rect x="220" y="35" width="20" height="265" fill="black"/>      <!-- Left hallway wall -->
+
+  <!-- Kitchen wall (bottom right section) -->
+  <rect x="35" y="650" width="585" height="20" fill="black"/>      <!-- Kitchen top wall -->
+  <rect x="600" y="670" width="20" height="195" fill="black"/>     <!-- Kitchen right wall -->
+
+  <!-- Bathroom wall (small room in corner) -->
+  <rect x="220" y="650" width="20" height="215" fill="black"/>     <!-- Bathroom left wall -->
+  <rect x="240" y="750" width="380" height="20" fill="black"/>     <!-- Bathroom back wall -->
+
+  <!-- Living room walls (large room on right side) -->
+  <rect x="620" y="320" width="585" height="20" fill="black"/>     <!-- Living room top wall -->
+  <rect x="620" y="35" width="20" height="285" fill="black"/>      <!-- Living room left wall -->
+
+  <!-- Master bedroom wall (top left corner) -->
+  <rect x="35" y="180" width="185" height="20" fill="black"/>      <!-- Master bedroom bottom wall -->
+
+  <!-- Second bedroom wall (top middle) -->
+  <rect x="420" y="180" width="200" height="20" fill="black"/>     <!-- Second bedroom bottom wall -->
+  <rect x="400" y="35" width="20" height="145" fill="black"/>      <!-- Second bedroom left wall -->
+
+  <!-- Doors (openings in walls, 90px = ~77cm wide, typical Russian door) -->
+
+  <!-- Master bedroom door (opening to hallway) -->
+  <rect x="120" y="300" width="90" height="20" fill="white"/>      <!-- Door opening -->
+
+  <!-- Second bedroom door (opening to hallway) -->
+  <rect x="480" y="300" width="90" height="20" fill="white"/>      <!-- Door opening -->
+
+  <!-- Kitchen door (opening from hallway) -->
+  <rect x="280" y="650" width="90" height="20" fill="white"/>      <!-- Door opening -->
+
+  <!-- Bathroom door (opening from hallway) -->
+  <rect x="220" y="450" width="20" height="90" fill="white"/>      <!-- Door opening -->
+
+  <!-- Living room wide opening (no door, open doorway) -->
+  <rect x="620" y="220" width="20" height="100" fill="white"/>     <!-- Wide opening -->
+
+  <!-- Entry door (main entrance from stairwell) -->
+  <rect x="500" y="300" width="100" height="20" fill="white"/>     <!-- Entry door -->
+
+  <!-- Furniture and acoustic obstacles -->
+
+  <!-- Master bedroom furniture -->
+  <rect x="60" y="60" width="140" height="100" fill="gray"/>       <!-- Bed (double) -->
+  <rect x="60" y="220" width="80" height="60" fill="gray"/>        <!-- Wardrobe -->
+
+  <!-- Second bedroom furniture -->
+  <rect x="440" y="60" width="120" height="80" fill="gray"/>       <!-- Bed (single) -->
+  <rect x="560" y="220" width="40" height="60" fill="gray"/>       <!-- Desk -->
+
+  <!-- Kitchen furniture and appliances -->
+  <rect x="60" y="690" width="150" height="60" fill="gray"/>       <!-- Kitchen counter L-shape -->
+  <rect x="60" y="750" width="60" height="100" fill="gray"/>       <!-- Counter extension -->
+  <rect x="140" y="790" width="60" height="60" fill="gray"/>       <!-- Stove -->
+  <rect x="400" y="690" width="60" height="60" fill="gray"/>       <!-- Refrigerator -->
+  <rect x="480" y="690" width="100" height="60" fill="gray"/>      <!-- Dining table -->
+
+  <!-- Bathroom fixtures -->
+  <rect x="260" y="780" width="140" height="70" fill="gray"/>      <!-- Bathtub -->
+  <rect x="420" y="780" width="60" height="50" fill="gray"/>       <!-- Washing machine -->
+  <rect x="520" y="800" width="50" height="50" fill="gray"/>       <!-- Toilet -->
+
+  <!-- Living room furniture (realistic arrangement) -->
+  <rect x="660" y="380" width="240" height="120" fill="gray"/>     <!-- Sofa (L-shaped section 1) -->
+  <rect x="660" y="500" width="120" height="120" fill="gray"/>     <!-- Sofa (L-shaped section 2) -->
+  <rect x="920" y="450" width="140" height="100" fill="gray"/>     <!-- TV stand and entertainment -->
+  <rect x="1080" y="380" width="100" height="100" fill="gray"/>    <!-- Bookshelf -->
+  <rect x="820" y="520" width="80" height="80" fill="gray"/>       <!-- Coffee table -->
+
+  <!-- Hallway furniture -->
+  <rect x="260" y="340" width="120" height="40" fill="gray"/>      <!-- Shoe cabinet -->
+  <rect x="420" y="340" width="60" height="40" fill="gray"/>       <!-- Mirror stand -->
+
+  <!-- Balcony (glazed balcony typical in Krasnodar apartments) -->
+  <rect x="1070" y="60" width="135" height="240" fill="lightgray" stroke="black" stroke-width="3"/>
+  <line x1="1070" y1="150" x2="1070" y2="210" stroke="white" stroke-width="20"/>  <!-- Balcony door opening -->
+
+  <!-- Windows (for reference) -->
+  <line x1="60" y1="35" x2="160" y2="35" stroke="lightblue" stroke-width="4"/>    <!-- Master bedroom window -->
+  <line x1="460" y1="35" x2="560" y2="35" stroke="lightblue" stroke-width="4"/>   <!-- Second bedroom window -->
+  <line x1="800" y1="35" x2="950" y2="35" stroke="lightblue" stroke-width="4"/>   <!-- Living room window -->
+  <line x1="35" y1="700" x2="35" y2="800" stroke="lightblue" stroke-width="4"/>   <!-- Kitchen window -->
+
+  <!-- Room labels (for reference, rendered as text - won't affect simulation) -->
+  <text x="100" y="120" font-family="Arial" font-size="16" fill="darkgray">Master</text>
+  <text x="100" y="140" font-family="Arial" font-size="16" fill="darkgray">Bedroom</text>
+  <text x="480" y="120" font-family="Arial" font-size="14" fill="darkgray">Bedroom 2</text>
+  <text x="350" y="550" font-family="Arial" font-size="16" fill="darkgray">Hallway</text>
+  <text x="200" y="750" font-family="Arial" font-size="18" fill="darkgray">Kitchen</text>
+  <text x="380" y="820" font-family="Arial" font-size="12" fill="darkgray">Bath</text>
+  <text x="800" y="550" font-family="Arial" font-size="20" fill="darkgray">Living Room</text>
+  <text x="1100" y="180" font-family="Arial" font-size="12" fill="darkgray">Balcony</text>
+</svg>
