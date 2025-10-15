@@ -20,6 +20,9 @@ public:
     // Get room viewport (for mouse coordinate mapping)
     void getRoomViewport(float& left, float& right, float& bottom, float& top) const;
 
+    // Update grid dimensions and recalculate viewport
+    void updateGridDimensions(int width, int height);
+
     // Grid configuration
     void setGridEnabled(bool enabled) { gridEnabled = enabled; }
     bool isGridEnabled() const { return gridEnabled; }
@@ -52,8 +55,7 @@ private:
     GLuint gridVBO = 0;
     GLuint gridShaderProgram = 0;
     GLuint gridProjectionLoc = 0;
-    int minorLineCount = 0;  // Number of minor grid line vertices
-    int majorLineCount = 0;  // Number of major grid line vertices
+    int gridLineCount = 0;  // Total number of grid line vertices
 
     bool loadShaders();
     GLuint compileShader(GLenum type, const std::string& source);

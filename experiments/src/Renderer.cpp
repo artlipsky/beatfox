@@ -227,6 +227,12 @@ void Renderer::getRoomViewport(float& left, float& right, float& bottom, float& 
     top = roomViewportY + roomViewportHeight;
 }
 
+void Renderer::updateGridDimensions(int width, int height) {
+    gridWidth = width;
+    gridHeight = height;
+    calculateRoomViewport();
+}
+
 GLuint Renderer::compileShader(GLenum type, const std::string& source) {
     GLuint shader = glCreateShader(type);
     const char* src = source.c_str();
@@ -293,23 +299,32 @@ bool Renderer::loadShaders() {
 }
 
 bool Renderer::loadGridShaders() {
-    // Simple vertex shader for grid lines
+    // Vertex shader for grid lines with major/minor attribute
     const char* gridVertexSource = R"(
         #version 330 core
         layout (location = 0) in vec2 aPos;
+        layout (location = 1) in float aMajor;
         uniform mat4 projection;
+        out float isMajor;
         void main() {
             gl_Position = projection * vec4(aPos, 0.0, 1.0);
+            isMajor = aMajor;
         }
     )";
 
-    // Simple fragment shader for grid lines
+    // Fragment shader for grid lines with major/minor distinction
     const char* gridFragmentSource = R"(
         #version 330 core
+        in float isMajor;
         out vec4 FragColor;
         void main() {
-            // Light gray with low opacity (0.9, 0.9, 0.9, 0.15)
-            FragColor = vec4(0.9, 0.9, 0.9, 0.15);
+            if (isMajor > 0.5) {
+                // Major lines: bright white, more opaque
+                FragColor = vec4(1.0, 1.0, 1.0, 0.35);
+            } else {
+                // Minor lines: subtle gray, low opacity
+                FragColor = vec4(0.6, 0.6, 0.6, 0.12);
+            }
         }
     )";
 
@@ -348,22 +363,22 @@ void Renderer::setupGridBuffers(int gridWidth, int gridHeight) {
     if (gridVAO) glDeleteVertexArrays(1, &gridVAO);
     if (gridVBO) glDeleteBuffers(1, &gridVBO);
 
-    std::vector<float> minorGridVertices;
-    std::vector<float> majorGridVertices;
+    std::vector<float> gridVertices;  // Format: x, y, isMajor
 
     // Generate vertical grid lines (along X axis)
     for (int x = 0; x <= gridWidth; x += gridSpacing) {
         float px = 2.0f * x / (gridWidth - 1) - 1.0f;
 
         // Determine if this is a major grid line (every 10th line)
-        bool isMajor = (x % (gridSpacing * 10) == 0);
-        std::vector<float>& vertices = isMajor ? majorGridVertices : minorGridVertices;
+        float isMajor = (x % (gridSpacing * 10) == 0) ? 1.0f : 0.0f;
 
-        // Line from bottom to top
-        vertices.push_back(px);
-        vertices.push_back(-1.0f);
-        vertices.push_back(px);
-        vertices.push_back(1.0f);
+        // Line from bottom to top (2 vertices per line)
+        gridVertices.push_back(px);       // x1
+        gridVertices.push_back(-1.0f);    // y1
+        gridVertices.push_back(isMajor);  // major flag
+        gridVertices.push_back(px);       // x2
+        gridVertices.push_back(1.0f);     // y2
+        gridVertices.push_back(isMajor);  // major flag
     }
 
     // Generate horizontal grid lines (along Y axis)
@@ -371,25 +386,18 @@ void Renderer::setupGridBuffers(int gridWidth, int gridHeight) {
         float py = 2.0f * y / (gridHeight - 1) - 1.0f;
 
         // Determine if this is a major grid line (every 10th line)
-        bool isMajor = (y % (gridSpacing * 10) == 0);
-        std::vector<float>& vertices = isMajor ? majorGridVertices : minorGridVertices;
+        float isMajor = (y % (gridSpacing * 10) == 0) ? 1.0f : 0.0f;
 
-        // Line from left to right
-        vertices.push_back(-1.0f);
-        vertices.push_back(py);
-        vertices.push_back(1.0f);
-        vertices.push_back(py);
+        // Line from left to right (2 vertices per line)
+        gridVertices.push_back(-1.0f);    // x1
+        gridVertices.push_back(py);       // y1
+        gridVertices.push_back(isMajor);  // major flag
+        gridVertices.push_back(1.0f);     // x2
+        gridVertices.push_back(py);       // y2
+        gridVertices.push_back(isMajor);  // major flag
     }
 
-    // Combine minor and major lines (minor first, then major)
-    // This allows us to draw them separately with different line widths
-    std::vector<float> allVertices;
-    allVertices.insert(allVertices.end(), minorGridVertices.begin(), minorGridVertices.end());
-    allVertices.insert(allVertices.end(), majorGridVertices.begin(), majorGridVertices.end());
-
-    // Store the count of minor vertices for later
-    minorLineCount = minorGridVertices.size() / 2;
-    majorLineCount = majorGridVertices.size() / 2;
+    gridLineCount = gridVertices.size() / 3;  // Total vertices (3 floats per vertex)
 
     // Create and bind VAO
     glGenVertexArrays(1, &gridVAO);
@@ -398,11 +406,15 @@ void Renderer::setupGridBuffers(int gridWidth, int gridHeight) {
     // Create and bind VBO
     glGenBuffers(1, &gridVBO);
     glBindBuffer(GL_ARRAY_BUFFER, gridVBO);
-    glBufferData(GL_ARRAY_BUFFER, allVertices.size() * sizeof(float), allVertices.data(), GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, gridVertices.size() * sizeof(float), gridVertices.data(), GL_STATIC_DRAW);
 
     // Position attribute (location = 0)
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*)0);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
+
+    // Major flag attribute (location = 1)
+    glVertexAttribPointer(1, 1, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)(2 * sizeof(float)));
+    glEnableVertexAttribArray(1);
 
     glBindVertexArray(0);
 }
@@ -420,17 +432,9 @@ void Renderer::renderGrid(int gridWidth, int gridHeight) {
     glm::mat4 projection = glm::ortho(-1.0f, 1.0f, -1.0f, 1.0f, -1.0f, 1.0f);
     glUniformMatrix4fv(gridProjectionLoc, 1, GL_FALSE, &projection[0][0]);
 
-    // Bind VAO
+    // Bind VAO and draw all grid lines
+    // The shader will distinguish major/minor based on the vertex attribute
     glBindVertexArray(gridVAO);
-
-    // Draw minor grid lines (thin, more transparent)
-    // Note: Line width control via glLineWidth may not be available in all OpenGL contexts
-    // Instead, we use the same line width but different appearance is achieved
-    // through the distinction in the shader or by drawing twice
-    glDrawArrays(0x0001, 0, minorLineCount);  // 0x0001 = GL_LINES
-
-    // Draw major grid lines (same width but will appear bolder due to being every 10th line)
-    glDrawArrays(0x0001, minorLineCount, majorLineCount);  // 0x0001 = GL_LINES
-
+    glDrawArrays(0x0001, 0, gridLineCount);  // 0x0001 = GL_LINES
     glBindVertexArray(0);
 }

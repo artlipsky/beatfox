@@ -349,6 +349,10 @@ void SimulationEngine::resizeSimulation(GridSize newSize) {
         return;
     }
 
+    // CRITICAL: Update renderer's grid dimensions BEFORE querying viewport
+    // This ensures the viewport is calculated with the correct aspect ratio
+    renderer->updateGridDimensions(gridWidth, gridHeight);
+
     // Update coordinate mapper with new grid dimensions
     int winWidth, winHeight;
     glfwGetWindowSize(window, &winWidth, &winHeight);
