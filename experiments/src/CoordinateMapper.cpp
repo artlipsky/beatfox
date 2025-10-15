@@ -59,11 +59,15 @@ bool CoordinateMapper::screenToGrid(double screenX, double screenY, int& gridX, 
     float viewportHeight = viewportTop - viewportBottom;
 
     float normalizedX = (fbX - viewportLeft) / viewportWidth;
-    // Map viewport to grid: bottom of viewport → gridY=0, top → gridY=height-1
+    // Map viewport to grid:
+    // Viewport Y is bottom-up (bottom=0, top=1)
+    // Grid Y is top-down (top=0, bottom=height-1)
+    // So we need to invert Y!
     float normalizedY = (fbYFlipped - viewportBottom) / viewportHeight;
 
     gridX = static_cast<int>(normalizedX * gridWidth);
-    gridY = static_cast<int>(normalizedY * gridHeight);
+    // CRITICAL FIX: Invert Y-axis mapping (grid is top-down, viewport is bottom-up)
+    gridY = static_cast<int>((1.0f - normalizedY) * gridHeight);
 
     // Clamp to valid range
     gridX = std::max(0, std::min(gridX, gridWidth - 1));
@@ -81,8 +85,11 @@ void CoordinateMapper::gridToFramebuffer(int gridX, int gridY, float& fbX, float
     float viewportHeight = viewportTop - viewportBottom;
 
     fbX = viewportLeft + normalizedX * viewportWidth;
-    // Map grid to viewport: gridY=0 → low fbY (viewBottom), gridY=height-1 → high fbY (viewTop)
-    fbY = viewportBottom + normalizedY * viewportHeight;
+    // CRITICAL FIX: Grid Y is top-down (top=0, bottom=height-1)
+    // Viewport Y is bottom-up (bottom=viewportBottom, top=viewportTop)
+    // So gridY=0 (top) should map to viewportTop (high fbY), not viewportBottom!
+    // Invert the Y mapping:
+    fbY = viewportTop - normalizedY * viewportHeight;
 }
 
 void CoordinateMapper::framebufferToWindow(float fbX, float fbY, float& windowX, float& windowY) const {
