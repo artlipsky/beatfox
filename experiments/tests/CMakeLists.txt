@@ -9,6 +9,7 @@ add_executable(
     WallReflectionTest.cpp
     AbsorbingBoundaryDebugTest.cpp
     CoordinateMapperTest.cpp
+    SimulationControllerTest.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/AudioOutput.cpp
 )
 
