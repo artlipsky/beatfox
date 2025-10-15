@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Krasnodar Series-137 Two-Bedroom Apartment (Detailed)
+  Usable area ~64.5 m^2. Scale assumes 1 px = 0.0086 m (8.6 mm) to align with SMALL/XLARGE grids.
+
+  Spatial program (interior width 10.46 m, depth 6.99 m):
+  - Master bedroom: 4.1 m x 3.6 m with built-in wardrobe and desk alcove
+  - Secondary bedroom: 3.5 m x 3.2 m with storage wall and study corner
+  - Living room: 5.4 m x 3.9 m opening to glazed loggia/balcony
+  - Kitchen-dining: 3.0 m x 3.2 m with L-counter + island + appliances
+  - Wet core: combined bath (2.4 m x 2.0 m) + utility closet (1.2 m x 1.6 m)
+  - Entry gallery: 1.8 m wide with coat closet and shoe cabinet
+
+  Acoustic notes:
+  - Outer walls: 320 mm reinforced concrete (high mass, reflective)
+  - Party walls: 160-180 mm concrete block
+  - Doors: 0.8-0.9 m apertures left open (white rectangles) for propagation
+  - Furnishings are mid/high obstacles (sofa, cabinetry, counters, appliances)
+  - Glazed balcony modeled with partial absorption (light gray) and sliding door
+
+  Coordinate guide (px):
+  - Overall SVG: 1280 x 880 (including exterior wall thickness)
+  - Interior origin: (32, 32), interior span: 1216 x 816 px
+  - Column widths: Bedrooms 500 px, Service 250 px, Living/Kitchen 466 px
+  - Row heights: Private 420 px, Family 378 px, separated by 18 px structural beam
+-->
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="880" viewBox="0 0 1280 880">
+  <!-- Background -->
+  <rect x="0" y="0" width="1280" height="880" fill="white"/>
+
+  <!-- Exterior walls (320 mm) -->
+  <rect x="0" y="0" width="1280" height="32" fill="black"/>
+  <rect x="0" y="848" width="1280" height="32" fill="black"/>
+  <rect x="0" y="0" width="32" height="880" fill="black"/>
+  <rect x="1248" y="0" width="32" height="880" fill="black"/>
+
+  <!-- Structural columns / facade piers -->
+  <rect x="1248" y="160" width="32" height="120" fill="black"/>
+  <rect x="1248" y="520" width="32" height="150" fill="black"/>
+
+  <!-- Main interior walls (180 mm) -->
+  <rect x="532" y="32" width="18" height="816" fill="black"/>
+  <rect x="782" y="32" width="18" height="816" fill="black"/>
+  <rect x="32" y="452" width="750" height="18" fill="black"/>
+
+  <!-- Bathroom/utility partitions -->
+  <rect x="532" y="260" width="250" height="18" fill="black"/>
+  <rect x="664" y="32" width="18" height="228" fill="black"/>
+  <rect x="664" y="278" width="118" height="18" fill="black"/>
+
+  <!-- Entry closet partition -->
+  <rect x="620" y="570" width="162" height="18" fill="black"/>
+  <rect x="620" y="588" width="18" height="120" fill="black"/>
+
+  <!-- Loggia / balcony parapet -->
+  <rect x="1136" y="32" width="112" height="160" fill="#d0d0d0" stroke="black" stroke-width="3"/>
+  <rect x="1136" y="152" width="18" height="40" fill="white"/>
+
+  <!-- Door and opening cut-outs (white to carve apertures) -->
+  <rect x="532" y="300" width="18" height="90" fill="white"/>  <!-- Master door -->
+  <rect x="532" y="580" width="18" height="90" fill="white"/>  <!-- Bedroom 2 door -->
+  <rect x="600" y="452" width="90" height="18" fill="white"/>  <!-- Bathroom access -->
+  <rect x="700" y="278" width="82" height="18" fill="white"/>   <!-- Utility closet entry -->
+  <rect x="782" y="248" width="18" height="140" fill="white"/>  <!-- Living opening -->
+  <rect x="782" y="620" width="18" height="120" fill="white"/>  <!-- Kitchen opening -->
+  <rect x="960" y="32" width="110" height="32" fill="white"/>   <!-- Living window header -->
+  <rect x="640" y="848" width="110" height="32" fill="white"/>  <!-- Entry door -->
+
+  <!-- Windows (light blue mullions) -->
+  <line x1="72" y1="32" x2="470" y2="32" stroke="lightblue" stroke-width="6"/>
+  <line x1="72" y1="848" x2="430" y2="848" stroke="lightblue" stroke-width="6"/>
+  <line x1="840" y1="32" x2="930" y2="32" stroke="lightblue" stroke-width="6"/>
+  <line x1="950" y1="848" x2="1180" y2="848" stroke="lightblue" stroke-width="6"/>
+
+  <!-- Master bedroom furniture -->
+  <rect x="72" y="72" width="360" height="210" rx="12" fill="#7d7d7d"/>
+  <rect x="72" y="300" width="120" height="120" fill="#6a6a6a"/>  <!-- Wardrobe wall -->
+  <rect x="410" y="320" width="84" height="84" fill="#888888"/>    <!-- Desk -->
+  <rect x="180" y="300" width="120" height="40" fill="#565656"/>  <!-- Dresser -->
+
+  <!-- Secondary bedroom furniture -->
+  <rect x="80" y="520" width="300" height="170" rx="10" fill="#8a8a8a"/>
+  <rect x="400" y="520" width="80" height="160" fill="#707070"/>   <!-- Wardrobe -->
+  <rect x="120" y="700" width="160" height="50" fill="#5a5a5a"/>   <!-- Low cabinet -->
+  <rect x="320" y="700" width="90" height="90" fill="#828282"/>    <!-- Study desk -->
+
+  <!-- Corridor / entry furnishings -->
+  <rect x="560" y="620" width="60" height="180" fill="#6e6e6e"/>   <!-- Shoe cabinet -->
+  <rect x="640" y="620" width="100" height="110" fill="#7b7b7b"/>  <!-- Coat closet -->
+  <rect x="620" y="520" width="110" height="40" fill="#5f5f5f"/>   <!-- Console -->
+
+  <!-- Bathroom fixtures -->
+  <rect x="552" y="60" width="220" height="100" rx="10" fill="#b0b0b0"/> <!-- Bathtub -->
+  <rect x="552" y="190" width="90" height="50" fill="#909090"/>               <!-- Vanity -->
+  <rect x="660" y="188" width="60" height="60" fill="#888888"/>               <!-- Washer -->
+  <rect x="720" y="195" width="50" height="40" fill="#7c7c7c"/>               <!-- Toilet -->
+  <rect x="682" y="72" width="50" height="70" fill="#9a9a9a"/>               <!-- Shower screen -->
+
+  <!-- Utility closet shelving -->
+  <rect x="702" y="320" width="70" height="110" fill="#8c8c8c"/>
+  <rect x="620" y="320" width="70" height="110" fill="#7e7e7e"/>
+
+  <!-- Living room furniture -->
+  <rect x="820" y="220" width="260" height="120" fill="#6f6f6f"/>  <!-- Sofa main -->
+  <rect x="820" y="340" width="140" height="80" fill="#6f6f6f"/>   <!-- Sofa chaise -->
+  <rect x="1100" y="240" width="100" height="60" fill="#7e7e7e"/> <!-- Media console -->
+  <rect x="860" y="190" width="220" height="20" fill="#505050"/>   <!-- Back shelf -->
+  <rect x="900" y="320" width="110" height="60" fill="#4e4e4e"/>   <!-- Coffee table -->
+  <rect x="1010" y="120" width="70" height="70" fill="#8b8b8b"/>   <!-- Bookcase -->
+  <rect x="1080" y="120" width="40" height="90" fill="#757575"/>  <!-- Tall plant -->
+
+  <!-- Kitchen and dining -->
+  <rect x="810" y="500" width="300" height="70" fill="#747474"/>   <!-- Main counter -->
+  <rect x="1100" y="500" width="110" height="200" fill="#6a6a6a"/> <!-- Fridge + pantry -->
+  <rect x="880" y="590" width="80" height="60" fill="#5c5c5c"/>    <!-- Cooktop -->
+  <rect x="970" y="590" width="60" height="60" fill="#666666"/>   <!-- Sink block -->
+  <rect x="890" y="690" width="200" height="120" rx="12" fill="#858585"/> <!-- Dining table -->
+  <rect x="850" y="720" width="40" height="60" fill="#545454"/>    <!-- Chair -->
+  <rect x="1090" y="720" width="40" height="60" fill="#545454"/>   <!-- Chair -->
+  <rect x="920" y="830" width="140" height="18" fill="#4a4a4a"/>   <!-- Threshold mat -->
+
+  <!-- Soft elements for acoustic absorption -->
+  <ellipse cx="910" cy="420" rx="120" ry="70" fill="#c6c6c6" opacity="0.9"/> <!-- Rug -->
+  <rect x="1180" y="60" width="40" height="120" fill="#a8a8a8" opacity="0.8"/> <!-- Curtain -->
+  <rect x="900" y="540" width="90" height="22" fill="#a0a0a0" opacity="0.8"/> <!-- Backsplash -->
+
+  <!-- Labels (for human reference) -->
+  <text x="220" y="220" font-family="Arial" font-size="18" fill="#404040">Master Suite</text>
+  <text x="200" y="640" font-family="Arial" font-size="18" fill="#404040">Bedroom 2</text>
+  <text x="600" y="360" font-family="Arial" font-size="16" fill="#404040">Bath</text>
+  <text x="640" y="660" font-family="Arial" font-size="16" fill="#404040">Entry</text>
+  <text x="900" y="200" font-family="Arial" font-size="20" fill="#404040">Living</text>
+  <text x="940" y="660" font-family="Arial" font-size="20" fill="#404040">Kitchen + Dining</text>
+  <text x="1160" y="120" font-family="Arial" font-size="14" fill="#404040">Loggia</text>
+</svg>
