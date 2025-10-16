@@ -364,6 +364,13 @@
     return nullptr;
 }
 
+- (const uint8_t *)getObstacleFieldData {
+    if (simulation) {
+        return simulation->getObstacles();
+    }
+    return nullptr;
+}
+
 - (NSArray<AudioSourceInfo *> *)getAudioSources {
     if (!simulation) {
         return @[];

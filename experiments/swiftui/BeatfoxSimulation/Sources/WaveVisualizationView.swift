@@ -26,6 +26,12 @@ struct WaveVisualizationView: View {
                                     .resizable()
                             }
 
+                            // Obstacle overlay (draw walls in white)
+                            ObstacleOverlay(gridWidth: viewModel.gridWidth,
+                                           gridHeight: viewModel.gridHeight,
+                                           numObstacles: viewModel.numObstacles,
+                                           bridge: viewModel.bridge)
+
                             // Grid overlay (using shared grid config from core)
                             GridOverlay(gridWidth: viewModel.gridWidth,
                                        gridHeight: viewModel.gridHeight,
@@ -310,6 +316,45 @@ struct AudioSourceMarkers: View {
                             with: .color(.white.opacity(150/255.0)),
                             lineWidth: 1
                         )
+                    }
+                }
+            }
+        }
+        .allowsHitTesting(false)
+    }
+}
+
+/// Obstacle overlay - renders walls in white
+struct ObstacleOverlay: View {
+    let gridWidth: Int
+    let gridHeight: Int
+    let numObstacles: Int  // Triggers re-render when obstacle count changes
+    let bridge: SimulationControllerBridge
+
+    var body: some View {
+        GeometryReader { geometry in
+            Canvas { context, size in
+                // Get obstacle data
+                let obstacleData = bridge.getObstacleFieldData()
+
+                // Calculate pixel per grid cell
+                let pixelWidth = size.width / CGFloat(gridWidth)
+                let pixelHeight = size.height / CGFloat(gridHeight)
+
+                // Draw each obstacle pixel as a white rectangle
+                for y in 0..<gridHeight {
+                    for x in 0..<gridWidth {
+                        let index = y * gridWidth + x
+                        if obstacleData[index] != 0 {
+                            // Draw white rectangle for this obstacle cell
+                            let rect = CGRect(
+                                x: CGFloat(x) * pixelWidth,
+                                y: CGFloat(y) * pixelHeight,
+                                width: pixelWidth,
+                                height: pixelHeight
+                            )
+                            context.fill(Path(rect), with: .color(.white))
+                        }
                     }
                 }
             }

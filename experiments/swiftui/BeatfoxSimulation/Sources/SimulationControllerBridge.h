@@ -118,6 +118,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 // Rendering data access
 - (const float *)getPressureFieldData;
+- (const uint8_t *)getObstacleFieldData;
 - (NSArray<AudioSourceInfo *> *)getAudioSources;
 
 @end
