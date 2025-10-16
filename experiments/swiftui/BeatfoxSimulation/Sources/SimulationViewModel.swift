@@ -7,6 +7,8 @@
 
 import Foundation
 import Combine
+import AppKit
+import UniformTypeIdentifiers
 
 /// Main ViewModel for the simulation
 @MainActor
@@ -42,10 +44,18 @@ class SimulationViewModel: ObservableObject {
     @Published var listenerY: Int = 0
     @Published var numAudioSources: Int = 0
     @Published var numObstacles: Int = 0
+    @Published var gridSpacing: Int = 10
+    @Published var pixelSize: Float = 0.0086
 
     // Audio info
     @Published var isMuted: Bool = false
     @Published var volume: Float = 1.0
+
+    // Obstacle control
+    @Published var obstacleRadius: Int = 5
+
+    // State version for triggering UI updates
+    @Published var audioSourceStateVersion: Int = 0
 
     init() {
         self.bridge = SimulationControllerBridge()
@@ -79,6 +89,9 @@ class SimulationViewModel: ObservableObject {
 
         // Sync state back to SwiftUI
         syncStateFromBridge()
+
+        // Increment state version to trigger UI updates (for audio source playback state)
+        audioSourceStateVersion += 1
     }
 
     private func syncStateFromBridge() {
@@ -106,9 +119,12 @@ class SimulationViewModel: ObservableObject {
         listenerY = Int(state.listenerY)
         numAudioSources = Int(state.numAudioSources)
         numObstacles = Int(state.numObstacles)
+        gridSpacing = Int(state.gridSpacing)
+        pixelSize = state.pixelSize
 
         isMuted = state.isMuted
         volume = state.volume
+        obstacleRadius = Int(state.obstacleRadius)
     }
 
     // MARK: - UI Commands
@@ -196,11 +212,20 @@ class SimulationViewModel: ObservableObject {
         bridge.addImpulseAt(x: x, y: y, pressure: impulsePressure, radius: Int32(impulseRadius))
     }
 
-    func addObstacle(at point: CGPoint, radius: Int = 5) {
+    func addObstacle(at point: CGPoint) {
         let x = Int32(point.x)
         let y = Int32(point.y)
 
-        bridge.addObstacleAt(x: x, y: y, radius: Int32(radius))
+        bridge.addObstacleAt(x: x, y: y, radius: Int32(obstacleRadius))
+    }
+
+    func addAudioSource(at point: CGPoint) {
+        let x = Int32(point.x)
+        let y = Int32(point.y)
+
+        // Call bridge method with selected preset and settings
+        bridge.addAudioSourceAt(x: x, y: y, preset: Int32(selectedPreset), volumeDb: sourceVolumeDb, loop: sourceLoop)
+        print("Audio source placed at (\(x), \(y)) with preset \(selectedPreset)")
     }
 
     func clearObstacles() {
@@ -209,6 +234,31 @@ class SimulationViewModel: ObservableObject {
 
     func clearWaves() {
         bridge.clearWaves()
+    }
+
+    func loadSVGLayout() {
+        // Create file picker dialog
+        let panel = NSOpenPanel()
+        panel.title = "Load SVG Room Layout"
+        panel.allowedContentTypes = [.svg]
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        panel.canChooseFiles = true
+
+        // Show dialog
+        panel.begin { response in
+            if response == .OK, let url = panel.url {
+                print("Loading SVG: \(url.path)")
+                let success = self.bridge.loadObstacles(fromSVG: url.path)
+                if success {
+                    print("SVG loaded successfully")
+                } else {
+                    print("Failed to load SVG")
+                }
+            } else {
+                print("File dialog cancelled")
+            }
+        }
     }
 
     func setListenerPosition(at point: CGPoint) {
@@ -232,5 +282,83 @@ class SimulationViewModel: ObservableObject {
     func setVolume(_ value: Float) {
         bridge.setVolume(value)
         volume = value
+    }
+
+    func loadAudioFile() {
+        // Create file picker dialog
+        let panel = NSOpenPanel()
+        panel.title = "Load Audio File"
+        panel.allowedContentTypes = [
+            UTType(filenameExtension: "mp3")!,
+            UTType(filenameExtension: "wav")!,
+            UTType(filenameExtension: "flac")!
+        ]
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        panel.canChooseFiles = true
+
+        // Show dialog
+        panel.begin { response in
+            if response == .OK, let url = panel.url {
+                print("Loading audio file: \(url.path)")
+                let success = self.bridge.loadAudioFile(url.path)
+                if success {
+                    print("Audio file loaded successfully")
+                } else {
+                    print("Failed to load audio file")
+                }
+            } else {
+                print("File dialog cancelled")
+            }
+        }
+    }
+
+    func clearAudioSources() {
+        bridge.clearAudioSources()
+        print("Cleared all audio sources")
+    }
+
+    // MARK: - Physics Control
+
+    func setWaveSpeed(_ speed: Float) {
+        bridge.setWaveSpeed(speed)
+        print("Wave speed set to \(speed) m/s")
+    }
+
+    func getAirAbsorption() -> Float {
+        return bridge.getDamping()
+    }
+
+    func setAirAbsorption(_ damping: Float) {
+        bridge.setAirAbsorption(damping)
+        print("Air absorption set to \(damping)")
+    }
+
+    // MARK: - GPU Control
+
+    func toggleGPU() {
+        bridge.toggleGPU()
+        print("GPU toggled - now \(bridge.isGPUEnabled() ? "enabled" : "disabled")")
+    }
+
+    // MARK: - Obstacle Control
+
+    func setObstacleRadius(_ radius: Int) {
+        let clampedRadius = max(1, min(20, radius))
+        bridge.setObstacleRadius(Int32(clampedRadius))
+        obstacleRadius = clampedRadius
+        print("Obstacle radius: \(clampedRadius) pixels")
+    }
+
+    func removeObstacle(at point: CGPoint) {
+        let x = Int32(point.x)
+        let y = Int32(point.y)
+        bridge.removeObstacleAt(x: x, y: y, radius: Int32(obstacleRadius))
+    }
+
+    // MARK: - Audio Source Control
+
+    func toggleAudioSourcePlayback(at index: Int) {
+        bridge.toggleAudioSourcePlayback(Int32(index))
     }
 }

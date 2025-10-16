@@ -55,6 +55,10 @@ struct SimulationState {
         int numAudioSources = 0;
         int numObstacles = 0;
         float activeRegionPercent = 0.0f;
+
+        // Grid visualization config
+        int gridSpacing = 10;        // Grid line every N pixels
+        float pixelSize = 0.0086f;   // Physical size of 1 pixel in meters (8.6mm)
     } info;
 
     // Audio info (read-only, updated by audio system)

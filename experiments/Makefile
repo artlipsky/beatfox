@@ -1,7 +1,7 @@
 # Makefile for Acoustic Wave Simulation Project
 # Provides convenient commands for building, testing, and code quality
 
-.PHONY: help build build-release build-debug test test-coverage coverage check clean run format lint install
+.PHONY: help build build-release build-debug test test-coverage coverage check clean run run-release run-swiftui format lint install
 
 # Default target
 .DEFAULT_GOAL := help
@@ -34,8 +34,9 @@ help:
 	@echo "  make coverage       - Alias for test-coverage"
 	@echo ""
 	@echo "Running:"
-	@echo "  make run            - Build and run the simulation"
+	@echo "  make run            - Build and run the simulation (ImGui)"
 	@echo "  make run-release    - Build (release) and run the simulation"
+	@echo "  make run-swiftui    - Build and run the SwiftUI version"
 	@echo ""
 	@echo "Code Quality:"
 	@echo "  make check          - Run linter and tests (full quality check)"
@@ -158,6 +159,11 @@ run: build-debug
 run-release: build-release
 	@echo "Running simulation (Release)..."
 	cd $(BUILD_DIR_RELEASE) && ./SoundWaveSimulation
+
+run-swiftui: build-debug
+	@echo "Running SwiftUI simulation..."
+	@cmake --build $(BUILD_DIR) --target BeatfoxSimulationApp
+	$(BUILD_DIR)/swiftui/BeatfoxSimulation
 
 # Clean target
 clean:

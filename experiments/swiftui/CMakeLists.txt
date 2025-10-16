@@ -27,10 +27,13 @@ set_source_files_properties(
 # List Swift source files
 set(SWIFT_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/BeatfoxSimulation/Sources/BeatfoxSimulationApp.swift
+    ${CMAKE_CURRENT_SOURCE_DIR}/BeatfoxSimulation/Sources/AppDelegate.swift
     ${CMAKE_CURRENT_SOURCE_DIR}/BeatfoxSimulation/Sources/SimulationView.swift
     ${CMAKE_CURRENT_SOURCE_DIR}/BeatfoxSimulation/Sources/ControlPanelView.swift
     ${CMAKE_CURRENT_SOURCE_DIR}/BeatfoxSimulation/Sources/SimulationViewModel.swift
     ${CMAKE_CURRENT_SOURCE_DIR}/BeatfoxSimulation/Sources/WaveVisualizationView.swift
+    ${CMAKE_CURRENT_SOURCE_DIR}/BeatfoxSimulation/Sources/MouseHandlerView.swift
+    ${CMAKE_CURRENT_SOURCE_DIR}/BeatfoxSimulation/Sources/KeyboardMonitor.swift
 )
 
 # Custom target to build SwiftUI app using swiftc directly

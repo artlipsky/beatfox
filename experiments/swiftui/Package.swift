@@ -25,7 +25,10 @@ let package = Package(
                 "BeatfoxSimulationApp.swift",
                 "SimulationView.swift",
                 "ControlPanelView.swift",
-                "SimulationViewModel.swift"
+                "SimulationViewModel.swift",
+                "WaveVisualizationView.swift",
+                "MouseHandlerView.swift",
+                "AppDelegate.swift"
             ],
             publicHeadersPath: ".",
             cxxSettings: [

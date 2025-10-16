@@ -143,13 +143,15 @@ void SimulationUI::renderControlsPanel() {
     ImGui::Text("ACOUSTIC SIMULATION");
     ImGui::PopStyleColor();
 
-    ImGui::TextDisabled("20m x 10m room (1px = 5cm)");
+    if (simulation) {
+        ImGui::TextDisabled("%.1fm x %.1fm room", simulation->getPhysicalWidth(), simulation->getPhysicalHeight());
+    }
     ImGui::Separator();
     ImGui::Spacing();
 
     ImGui::Text("Physical parameters:");
     ImGui::BulletText("Speed: %.0f m/s", simulation ? simulation->getWaveSpeed() : 343.0f);
-    ImGui::BulletText("Scale: 1 px = 5.0 cm [optimized]");
+    ImGui::BulletText("Scale: 1 px = 8.6 mm");
 
     ImGui::Spacing();
     ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.8f, 0.3f, 1.0f));

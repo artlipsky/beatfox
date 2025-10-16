@@ -8,45 +8,51 @@
 import SwiftUI
 
 struct SimulationView: View {
-    @StateObject private var viewModel = SimulationViewModel()
+    @ObservedObject var viewModel: SimulationViewModel
 
     var body: some View {
         ZStack {
             // Main simulation visualization
             WaveVisualizationView(viewModel: viewModel)
 
-            // Help button (top-right when panel is hidden)
+            // Help button (top-left when panel is hidden - matching ImGui version)
             if !viewModel.showHelp {
                 VStack {
                     HStack {
-                        Spacer()
-                        Button(action: {
+                        Button("? Help (H)") {
                             viewModel.toggleHelp()
-                        }) {
-                            Label("Show Controls (H)", systemImage: "sidebar.left")
-                                .padding(12)
-                                .background(Color(NSColor.windowBackgroundColor).opacity(0.9))
-                                .cornerRadius(8)
                         }
+                        .padding(8)
+                        .background(Color(NSColor.windowBackgroundColor).opacity(0.7))
+                        .cornerRadius(4)
                         .buttonStyle(.plain)
-                        .padding()
+                        .padding(.leading, 20)
+                        .padding(.top, 40)  // Extra padding to avoid macOS traffic light buttons
+
+                        Spacer()
                     }
                     Spacer()
                 }
             }
 
-            // Control Panel (left side with scroll)
+            // Control Panel (left side with scroll - matching ImGui position at 20, 20)
             if viewModel.showHelp {
-                HStack(spacing: 0) {
-                    ScrollView {
-                        VStack(alignment: .leading, spacing: 0) {
-                            ControlPanelView(viewModel: viewModel)
+                VStack {
+                    HStack(spacing: 0) {
+                        ScrollView {
+                            VStack(alignment: .leading, spacing: 0) {
+                                ControlPanelView(viewModel: viewModel)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .top)
                         }
-                        .frame(maxWidth: .infinity, alignment: .top)
-                    }
-                    .frame(width: 320)
-                    .background(Color(NSColor.windowBackgroundColor).opacity(0.95))
+                        .frame(width: 350)
+                        .background(Color(NSColor.windowBackgroundColor).opacity(0.9))
+                        .cornerRadius(8)
+                        .padding(.leading, 20)
+                        .padding(.top, 40)  // Position to avoid traffic lights
 
+                        Spacer()
+                    }
                     Spacer()
                 }
                 .transition(.move(edge: .leading))
@@ -57,5 +63,5 @@ struct SimulationView: View {
 }
 
 #Preview {
-    SimulationView()
+    SimulationView(viewModel: SimulationViewModel())
 }

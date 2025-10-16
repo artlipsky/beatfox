@@ -33,11 +33,23 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, assign) int listenerY;
 @property (nonatomic, assign) int numAudioSources;
 @property (nonatomic, assign) int numObstacles;
+@property (nonatomic, assign) int gridSpacing;
+@property (nonatomic, assign) float pixelSize;
+@property (nonatomic, assign) BOOL isGPUEnabled;
+@property (nonatomic, assign) BOOL isGPUAvailable;
+@property (nonatomic, assign) int obstacleRadius;
 
 // Audio info
 @property (nonatomic, assign) BOOL isAudioInitialized;
 @property (nonatomic, assign) BOOL isMuted;
 @property (nonatomic, assign) float volume;
+@end
+
+/// Audio source info for UI rendering
+@interface AudioSourceInfo : NSObject
+@property (nonatomic, assign) int x;
+@property (nonatomic, assign) int y;
+@property (nonatomic, assign) BOOL isPlaying;
 @end
 
 /// Bridge class that wraps SimulationController
@@ -68,6 +80,7 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)addImpulseAtX:(int)x y:(int)y pressure:(float)pressure radius:(int)radius;
 - (void)addObstacleAtX:(int)x y:(int)y radius:(int)radius;
 - (void)clearObstacles;
+- (BOOL)loadObstaclesFromSVG:(NSString *)filePath;
 - (void)clearWaves;
 - (void)setListenerPositionX:(int)x y:(int)y;
 - (void)toggleListener;
@@ -76,6 +89,26 @@ NS_ASSUME_NONNULL_BEGIN
 // Audio operations
 - (void)toggleMute;
 - (void)setVolume:(float)volume;
+- (BOOL)loadAudioFile:(NSString *)filePath;
+- (void)clearAudioSources;
+- (void)addAudioSourceAtX:(int)x y:(int)y preset:(int)presetIndex volumeDb:(float)volumeDb loop:(BOOL)loop;
+
+// Physics control
+- (void)setWaveSpeed:(float)speed;
+- (float)getDamping;
+- (void)setAirAbsorption:(float)damping;
+
+// GPU control
+- (void)toggleGPU;
+- (BOOL)isGPUEnabled;
+- (BOOL)isGPUAvailable;
+
+// Obstacle control
+- (void)setObstacleRadius:(int)radius;
+- (void)removeObstacleAtX:(int)x y:(int)y radius:(int)radius;
+
+// Audio source control (for click-to-toggle)
+- (void)toggleAudioSourcePlayback:(int)index;
 
 // Acoustic presets (0=Realistic, 1=Visualization, 2=Anechoic)
 - (void)applyDampingPreset:(int)presetType;
@@ -85,6 +118,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 // Rendering data access
 - (const float *)getPressureFieldData;
+- (NSArray<AudioSourceInfo *> *)getAudioSources;
 
 @end
 

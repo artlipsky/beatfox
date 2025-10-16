@@ -179,6 +179,8 @@ void SimulationController::updateState() {
     state.info.physicalHeight = simulation->getPhysicalHeight();
     state.info.waveSpeed = simulation->getWaveSpeed();
     state.info.hasListener = simulation->hasListener();
+    state.info.gridSpacing = 10;  // Grid line every 10 pixels
+    state.info.pixelSize = simulation->getPixelSize();
 
     if (state.info.hasListener) {
         simulation->getListenerPosition(state.info.listenerX, state.info.listenerY);

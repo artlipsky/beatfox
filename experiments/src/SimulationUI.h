@@ -61,7 +61,7 @@ public:
     /*
      * Render listener marker (virtual microphone indicator)
      *
-     * Draws a green circle with microphone icon at the listener position.
+     * Draws a gllllll    reen circle with microphone icon at the listener position.
      */
     void renderListenerMarker();
 
