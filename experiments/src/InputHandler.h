@@ -3,86 +3,50 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <memory>
+#include <vector>
+#include "SimulationState.h"
 
 // Forward declarations
+class SimulationController;
 class WaveSimulation;
-class AudioOutput;
 class CoordinateMapper;
-class Renderer;
-class AudioSample;
 
 /*
- * InputHandler - Input Event Processing for Acoustic Simulation
+ * InputHandler - Input Event Processing with Command Pattern
  *
  * Encapsulates all GLFW input callback logic for the simulation.
- * Follows Single Responsibility Principle by separating input handling
- * from application logic.
+ * Uses the Command pattern to decouple input handling from simulation logic.
  *
  * Responsibilities:
  * - Process framebuffer resize events
  * - Process mouse button events (click, drag, release)
  * - Process cursor position events (movement, dragging)
  * - Process keyboard events (shortcuts, mode toggles)
+ * - Generate UICommand objects for simulation controller
  *
  * Does NOT handle:
- * - Application state ownership (managed by main.cpp)
+ * - Simulation updates (delegated to SimulationController)
  * - UI rendering (managed by SimulationUI)
- * - Simulation updates (managed by WaveSimulation)
+ * - State ownership (managed by SimulationController)
  *
  * Design Pattern:
- * - Non-owning: Uses pointers/references to external state
- * - Stateless: Does not maintain internal state beyond references
- * - Pure event processor: Responds to input events only
+ * - Command Pattern: Accumulates UICommands during event processing
+ * - Non-owning: Uses pointer to controller (not owned)
+ * - Event-driven: Responds to GLFW callbacks
  */
 class InputHandler {
 public:
     /*
      * Constructor
      *
-     * @param sim Pointer to wave simulation (not owned)
-     * @param audio Pointer to audio output (not owned)
+     * @param ctrl Pointer to simulation controller (not owned)
+     * @param sim Pointer to wave simulation (not owned, for direct queries)
      * @param mapper Pointer to coordinate mapper (not owned)
-     * @param rend Pointer to renderer (not owned)
-     * @param showHelp Reference to showHelp state variable
-     * @param timeScale Reference to timeScale state variable
-     * @param obstacleMode Reference to obstacleMode state variable
-     * @param obstacleRadius Reference to obstacleRadius state variable
-     * @param listenerMode Reference to listenerMode state variable
-     * @param draggingListener Reference to draggingListener state variable
-     * @param sourceMode Reference to sourceMode state variable
-     * @param selectedPreset Reference to selectedPreset state variable
-     * @param sourceVolumeDb Reference to sourceVolumeDb state variable
-     * @param sourceLoop Reference to sourceLoop state variable
-     * @param loadedSample Reference to loadedSample shared_ptr
-     * @param mousePressed Reference to mousePressed state variable
-     * @param lastMouseX Reference to lastMouseX state variable
-     * @param lastMouseY Reference to lastMouseY state variable
-     * @param windowWidth Reference to windowWidth state variable
-     * @param windowHeight Reference to windowHeight state variable
      */
     InputHandler(
+        SimulationController* ctrl,
         WaveSimulation* sim,
-        AudioOutput* audio,
-        CoordinateMapper* mapper,
-        Renderer* rend,
-        bool& showHelp,
-        float& timeScale,
-        bool& obstacleMode,
-        int& obstacleRadius,
-        bool& listenerMode,
-        bool& draggingListener,
-        bool& sourceMode,
-        int& selectedPreset,
-        float& sourceVolumeDb,
-        bool& sourceLoop,
-        std::shared_ptr<AudioSample>& loadedSample,
-        float& impulsePressure,
-        int& impulseRadius,
-        bool& mousePressed,
-        double& lastMouseX,
-        double& lastMouseY,
-        int& windowWidth,
-        int& windowHeight
+        CoordinateMapper* mapper
     );
 
     ~InputHandler() = default;
@@ -164,6 +128,17 @@ public:
      */
     void updateSimulationPointer(WaveSimulation* newSim);
 
+    /*
+     * Collect accumulated commands
+     *
+     * Returns all commands generated during this frame and clears
+     * the internal command queue. Should be called once per frame
+     * after all input events have been processed.
+     *
+     * @return Vector of commands to be processed by controller
+     */
+    std::vector<std::unique_ptr<UICommand>> collectCommands();
+
 private:
     /*
      * Convert screen coordinates to grid coordinates
@@ -179,29 +154,19 @@ private:
      */
     bool screenToGrid(double screenX, double screenY, int& gridX, int& gridY);
 
-    // References to simulation components (not owned)
+    // Pointers to subsystems (not owned)
+    SimulationController* controller;
     WaveSimulation* simulation;
-    AudioOutput* audioOutput;
     CoordinateMapper* coordinateMapper;
-    Renderer* renderer;
 
-    // References to state variables (managed by main.cpp)
-    bool& showHelp;
-    float& timeScale;
-    bool& obstacleMode;
-    int& obstacleRadius;
-    bool& listenerMode;
-    bool& draggingListener;
-    bool& sourceMode;
-    int& selectedPreset;
-    float& sourceVolumeDb;
-    bool& sourceLoop;
-    std::shared_ptr<AudioSample>& loadedSample;
-    float& impulsePressure;
-    int& impulseRadius;
-    bool& mousePressed;
-    double& lastMouseX;
-    double& lastMouseY;
-    int& windowWidth;
-    int& windowHeight;
+    // Accumulated commands during frame
+    std::vector<std::unique_ptr<UICommand>> pendingCommands;
+
+    // Local tracking state (for drag operations)
+    bool mousePressed = false;
+    bool draggingListener = false;
+    double lastMouseX = 0.0;
+    double lastMouseY = 0.0;
+    int windowWidth = 0;
+    int windowHeight = 0;
 };

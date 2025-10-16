@@ -11,22 +11,7 @@ SimulationEngine::SimulationEngine(Application& app)
     : application(app)
     , windowWidth(1280)
     , windowHeight(720)
-    , mousePressed(false)
-    , lastMouseX(0.0)
-    , lastMouseY(0.0)
-    , showHelp(true)
-    , timeScale(0.001f)  // 1000x slower for clear visualization
-    , obstacleMode(false)
-    , obstacleRadius(5)
-    , listenerMode(false)
-    , draggingListener(false)
-    , sourceMode(false)
-    , selectedPreset(0)
-    , sourceVolumeDb(0.0f)
-    , sourceLoop(true)
-    , loadedSample(nullptr)
-    , impulsePressure(5.0f)  // 5 Pa = typical hand clap
-    , impulseRadius(2)       // 2 pixels × 8.6mm = 17.2mm ≈ 2cm spread
+    , timeScale(0.001f)  // 1000x slower for clear visualization (synced from controller)
     , gridWidth(581)   // 5m / 0.0086m = 581 pixels (SMALL ROOM + FULL AUDIO: 20 kHz support!)
     , gridHeight(291)  // 2.5m / 0.0086m = 291 pixels
     , currentGridSize(GridSize::SMALL)  // Start with small grid
@@ -134,6 +119,15 @@ bool SimulationEngine::initializeSubsystems() {
         vBottom, vTop
     );
 
+    // Initialize controller (application logic layer)
+    controller = std::make_unique<SimulationController>(
+        simulation.get(),
+        audioOutput.get(),
+        renderer.get(),
+        coordinateMapper.get(),
+        this
+    );
+
     // Place listener at center of room by default
     simulation->setListenerPosition(gridWidth / 2, gridHeight / 2);
     simulation->setListenerEnabled(true);
@@ -153,20 +147,17 @@ bool SimulationEngine::initializeSubsystems() {
 
     // Initialize UI
     simulationUI = std::make_unique<SimulationUI>(
-        this, simulation.get(), audioOutput.get(), coordinateMapper.get(),
-        showHelp, timeScale, obstacleMode, obstacleRadius,
-        listenerMode, sourceMode, selectedPreset, sourceVolumeDb, sourceLoop, loadedSample,
-        impulsePressure, impulseRadius
+        controller.get(),
+        simulation.get(),
+        audioOutput.get(),
+        coordinateMapper.get()
     );
 
     // Initialize input handler
     inputHandler = std::make_unique<InputHandler>(
-        simulation.get(), audioOutput.get(), coordinateMapper.get(), renderer.get(),
-        showHelp, timeScale, obstacleMode, obstacleRadius,
-        listenerMode, draggingListener, sourceMode, selectedPreset,
-        sourceVolumeDb, sourceLoop, loadedSample,
-        impulsePressure, impulseRadius,
-        mousePressed, lastMouseX, lastMouseY, windowWidth, windowHeight
+        controller.get(),
+        simulation.get(),
+        coordinateMapper.get()
     );
 
     return true;
@@ -247,6 +238,23 @@ void SimulationEngine::run() {
 
 void SimulationEngine::update() {
     const float fixedDt = 1.0f / 60.0f; // Fixed timestep for physics
+
+    // Collect commands from both input handler and UI
+    auto inputCommands = inputHandler->collectCommands();
+    auto uiCommands = simulationUI->collectCommands();
+
+    // Merge commands and process them
+    inputCommands.insert(inputCommands.end(),
+                         std::make_move_iterator(uiCommands.begin()),
+                         std::make_move_iterator(uiCommands.end()));
+
+    controller->processCommands(inputCommands);
+
+    // Update controller state from simulation
+    controller->updateState();
+
+    // Get updated time scale from controller
+    timeScale = controller->getState().timeScale;
 
     // Update simulation with scaled time step (for slow motion)
     simulation->update(fixedDt * timeScale);
@@ -366,6 +374,16 @@ void SimulationEngine::resizeSimulation(GridSize newSize) {
         gridWidth, gridHeight,
         vLeft, vRight,
         vBottom, vTop
+    );
+
+    // Update controller with new subsystems
+    controller.reset();
+    controller = std::make_unique<SimulationController>(
+        simulation.get(),
+        audioOutput.get(),
+        renderer.get(),
+        coordinateMapper.get(),
+        this
     );
 
     // Update UI and input handler with new simulation pointer

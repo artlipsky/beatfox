@@ -19,6 +19,13 @@ Example SVG files for loading studio room layouts into the acoustic wave simulat
 - **Description**: Multi-room studio with two isolation booths, curved walls, and acoustic treatment
 - **Features**: Curved diffusors, multiple circular booths, angled walls, bass traps, equipment rack
 
+### `krasnodar_apartment_2br_detailed.svg`
+- **Complexity**: Expert
+- **Description**: Detailed Series-137 two-bedroom flat with wet core, entry gallery, open living/dining, and glazed loggia.
+- **Features**: 320mm exterior walls, 180mm partitions, 0.9m door apertures (white fills), full furniture set (beds, wardrobes, sofa, kitchen, bath fixtures), balcony and soft absorbers for realistic reflections.
+- **Scale**: Pixel-based 1280x880 canvas (1px = 8.6mm) matching the SMALL/XLARGE simulation grids.
+
+
 ## Usage
 
 1. Launch the simulation

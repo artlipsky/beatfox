@@ -146,10 +146,20 @@ add_library(SimulationCore STATIC
     src/MetalSimulationBackend.h
     src/CoordinateMapper.cpp
     src/CoordinateMapper.h
+    src/SimulationController.cpp
+    src/SimulationController.h
+    src/SimulationState.h
+    src/ISimulationView.h
     src/SimulationUI.cpp
     src/SimulationUI.h
     src/InputHandler.cpp
     src/InputHandler.h
+    src/SimulationEngine.cpp
+    src/SimulationEngine.h
+    src/Renderer.cpp
+    src/Renderer.h
+    src/glad.c
+    ${IMGUI_SOURCES}
 )
 
 target_include_directories(SimulationCore PUBLIC
@@ -161,6 +171,12 @@ target_include_directories(SimulationCore PUBLIC
     ${IMGUI_DIR}/backends
 )
 
+target_link_libraries(SimulationCore
+    OpenGL::GL
+    glfw
+    glm::glm
+)
+
 # Apple-specific: Enable Objective-C++ for Metal backend and link Metal framework
 if(APPLE)
     set_source_files_properties(src/MetalSimulationBackend.mm PROPERTIES
@@ -169,7 +185,60 @@ if(APPLE)
     target_link_libraries(SimulationCore
         "-framework Metal"
         "-framework Foundation"
+        "-framework Cocoa"
+        "-framework IOKit"
+        "-framework CoreVideo"
     )
+endif()
+
+# Minimal library for SwiftUI (no UI dependencies)
+add_library(SimulationCoreMinimal STATIC
+    src/WaveSimulation.cpp
+    src/WaveSimulation.h
+    src/DampingPreset.cpp
+    src/DampingPreset.h
+    src/SVGLoader.cpp
+    src/SVGLoader.h
+    src/AudioSample.cpp
+    src/AudioSample.h
+    src/AudioSource.h
+    src/AudioFileLoader.cpp
+    src/AudioFileLoader.h
+    src/MetalSimulationBackend.mm
+    src/MetalSimulationBackend.h
+    src/SimulationController.cpp
+    src/SimulationController.h
+    src/SimulationState.h
+    src/AudioOutput.cpp
+    src/AudioOutput.h
+)
+
+target_include_directories(SimulationCoreMinimal PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/external
+    ${nanosvg_SOURCE_DIR}/src
+)
+
+target_compile_definitions(SimulationCoreMinimal PRIVATE
+    BEATFOX_MINIMAL_BUILD
+)
+
+if(APPLE)
+    set_source_files_properties(src/MetalSimulationBackend.mm PROPERTIES
+        COMPILE_FLAGS "-x objective-c++ -fobjc-arc"
+    )
+    target_link_libraries(SimulationCoreMinimal
+        "-framework Metal"
+        "-framework Foundation"
+        "-framework CoreAudio"
+        "-framework AudioToolbox"
+    )
+endif()
+
+# SwiftUI App (macOS only)
+if(APPLE)
+    add_subdirectory(swiftui)
 endif()
 
 # Tests
